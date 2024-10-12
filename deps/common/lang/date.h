@@ -14,7 +14,7 @@ inline bool is_leap_year(int year)
   return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
 }
 
-inline RC date_from_string(const string &str, int32_t date)
+inline RC date_from_string(const string &str, int32_t *date)
 {
   int year, month, day;
   const char *s = str.c_str(); // 获取str字符串的C风格指针字符串
@@ -31,11 +31,11 @@ inline RC date_from_string(const string &str, int32_t date)
     LOG_WARN("Invalid date: %d-%d-%d", year, month, day);
     return RC::INVALID_ARGUMENT;
   }
-  if (month == 2 && day == 29 && is_leap_year(year)) {
+  if (month == 2 && day == 29 && !is_leap_year(year)) {
     LOG_WARN("Invalid date for the leap year: %d-%d-%d", year, month, day);
     return RC::INVALID_ARGUMENT;
   }
-  date = year * 10000 + month * 100 + day;
+  *date = year * 10000 + month * 100 + day;
   return RC::SUCCESS;
 }
 
@@ -44,9 +44,9 @@ inline RC date_to_string(int32_t date, string &str)
   int  year  = date / 10000;
   int  month = date % 10000 / 100;
   int  day   = date % 100;
-  char buf[11];
-  snprintf(buf, sizeof(buf), "%04d-%02d-%02d", year, month, day);
-  str = buf;
+  stringstream ss;
+  ss << year << "-" << month << "-" << day;
+  str = ss.str();
   return RC::SUCCESS;
 }
 

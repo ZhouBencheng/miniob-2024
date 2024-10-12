@@ -190,7 +190,7 @@ void Value::set_date(const char *s, int len) // set_date设置字符串的版本
   attr_type_ = AttrType::DATES;
   ASSERT(s != nullptr, "date string is null");
   int32_t date = INT32_MAX;
-  RC rc =common::date_from_string(s, date);
+  RC rc =common::date_from_string(s, &date);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to convert string to date. s=%s", s);
     return;
@@ -363,7 +363,7 @@ int Value::get_date() const
     }
     case AttrType::CHARS: {
       int date = 0;
-      RC rc = common::date_from_string(string(value_.pointer_value_), date);
+      RC rc = common::date_from_string(string(value_.pointer_value_), &date);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to convert string to date. s=%s", value_.pointer_value_);
       }
