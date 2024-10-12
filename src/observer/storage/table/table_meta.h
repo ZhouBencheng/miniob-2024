@@ -72,12 +72,12 @@ public:
   void desc(std::ostream &os) const;
 
 protected:
-  int32_t                table_id_ = -1;
-  std::string            name_;
+  int32_t                table_id_ = -1;   // 表唯一标识ID
+  std::string            name_;            // 表名称
   std::vector<FieldMeta> trx_fields_;
-  std::vector<FieldMeta> fields_;  // 包含sys_fields
+  std::vector<FieldMeta> fields_;          // 包含sys_fields
   std::vector<IndexMeta> indexes_;
-  StorageFormat          storage_format_;
+  StorageFormat          storage_format_;  // 表存储格式
 
   int record_size_ = 0;
 };

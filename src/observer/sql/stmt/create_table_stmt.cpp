@@ -21,7 +21,7 @@ RC CreateTableStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt 
 {
   StorageFormat storage_format = StorageFormat::UNKNOWN_FORMAT;
   if (create_table.storage_format.length() == 0) {
-    storage_format = StorageFormat::ROW_FORMAT;
+    storage_format = StorageFormat::ROW_FORMAT; // 字符串类型的storage_format为空时，默认NSM存储
   } else {
     storage_format = get_storage_format(create_table.storage_format.c_str());
   }
@@ -33,7 +33,7 @@ RC CreateTableStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt 
   return RC::SUCCESS;
 }
 
-StorageFormat CreateTableStmt::get_storage_format(const char *format_str) {
+StorageFormat CreateTableStmt::get_storage_format(const char *format_str) { // 将字符串转化为StorageFormat格式的枚举值
   StorageFormat format = StorageFormat::UNKNOWN_FORMAT;
   if (0 == strcasecmp(format_str, "ROW")) {
     format = StorageFormat::ROW_FORMAT;

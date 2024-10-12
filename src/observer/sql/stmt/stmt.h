@@ -29,6 +29,7 @@ class Db;
  * @brief Statement的类型
  *
  */
+// 枚举宏，将DEFINE_ENUM_ITEM(CALC)展开成CALC
 #define DEFINE_ENUM()            \
   DEFINE_ENUM_ITEM(CALC)         \
   DEFINE_ENUM_ITEM(SELECT)       \

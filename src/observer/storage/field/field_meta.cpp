@@ -34,6 +34,15 @@ FieldMeta::FieldMeta(const char *name, AttrType attr_type, int attr_offset, int 
   ASSERT(rc == RC::SUCCESS, "failed to init field meta. rc=%s", strrc(rc));
 }
 
+/**
+ * @brief 构造一个属性的元数据
+ * @param name 属性名称
+ * @param attr_type 属性类型
+ * @param attr_offset 属性偏移量
+ * @param attr_len 属性的字节长度
+ * @param visible 属性是否可见，事务属性不可见
+ * @param field_id 属性标识ID，仅在普通属性和事务属性内部区分
+ */
 RC FieldMeta::init(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool visible, int field_id)
 {
   if (common::is_blank(name)) {

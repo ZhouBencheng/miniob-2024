@@ -14,8 +14,12 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/rc.h"
 
+/**
+ * @brief 将返回码RC转化为字符串char*类型
+ */
 const char *strrc(RC rc)
 {
+  // `#name`为预处理指令——将宏参数转化为字符串（SUCCESS将被转化为"SUCCESS"）
 #define DEFINE_RC(name) \
   case RC::name: {      \
     return #name;       \

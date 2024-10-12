@@ -45,7 +45,7 @@ public:
   void set_operator(unique_ptr<PhysicalOperator> oper) { operator_ = std::move(oper); }
 
 private:
-  SessionEvent                *session_event_ = nullptr;
+  SessionEvent                *session_event_ = nullptr; // SQLStageEvent里面为什么要有SessionEvent?
   string                       sql_;             ///< 处理的SQL语句
   unique_ptr<ParsedSqlNode>    sql_node_;        ///< 语法解析后的SQL命令
   Stmt                        *stmt_ = nullptr;  ///< Resolver之后生成的数据结构

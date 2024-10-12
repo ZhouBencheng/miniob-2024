@@ -16,12 +16,14 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include "common/lang/date.h"
 
 InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
     : table_(table), values_(values), value_amount_(value_amount)
 {}
 
-RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
+// 此处将create函数的inserts参数设置为非const，正确性有待考证
+RC InsertStmt::create(Db *db, InsertSqlNode &inserts, Stmt *&stmt)
 {
   const char *table_name = inserts.relation_name.c_str();
   if (nullptr == db || nullptr == table_name || inserts.values.empty()) {
@@ -38,13 +40,28 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   // check the fields number
-  const Value     *values     = inserts.values.data();
+  const Value     *values     = inserts.values.data(); // 获取vector<Value>数组底层第一个元素的指针
   const int        value_num  = static_cast<int>(inserts.values.size());
   const TableMeta &table_meta = table->table_meta();
   const int        field_num  = table_meta.field_num() - table_meta.sys_field_num();
-  if (field_num != value_num) {
+  if (field_num != value_num) { // 检查插入的值的数量是否与表的字段数量相等
     LOG_WARN("schema mismatch. value num=%d, field num in schema=%d", value_num, field_num);
     return RC::SCHEMA_FIELD_MISSING;
+  }
+
+  auto fields = table_meta.field_metas(); // 获取table中table_meta中的field_metas数组
+  for (auto i = 0; i < fields->size(); i++) {
+    if (fields->at(i).type() == AttrType::DATES) {
+      int date = 0;
+      common::date_from_string(inserts.values[i].get_string(), date);
+      inserts.values[i].set_type(AttrType::DATES);
+      inserts.values[i].set_data((char*)&date, sizeof(int));
+    }
+    if (inserts.values[i].attr_type() != fields->at(i).type()) {
+      LOG_WARN("schema mismatch. value type=%d, field type in schema=%d",
+          inserts.values[i].attr_type(), fields->at(i).type());
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+    }
   }
 
   // everything alright
