@@ -48,21 +48,6 @@ RC InsertStmt::create(Db *db, InsertSqlNode &inserts, Stmt *&stmt)
     return RC::SCHEMA_FIELD_MISSING;
   }
 
-  // auto fields = table_meta.field_metas(); // 获取table中table_meta中的field_metas数组
-  // for (auto i = 0; i < fields->size(); i++) {
-  //   if (fields->at(i).type() == AttrType::DATES) {
-  //     int date = 0;
-  //     common::date_from_string(inserts.values[i].get_string(), &date);
-  //     inserts.values[i].set_type(AttrType::DATES);
-  //     inserts.values[i].set_data((char*)&date, sizeof(int));
-  //   }
-  //   if (inserts.values[i].attr_type() != fields->at(i).type()) {
-  //     LOG_WARN("schema mismatch. value type=%d, field type in schema=%d",
-  //         inserts.values[i].attr_type(), fields->at(i).type());
-  //     return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-  //   }
-  // }
-
   // everything alright
   stmt = new InsertStmt(table, values, value_num);
   return RC::SUCCESS;

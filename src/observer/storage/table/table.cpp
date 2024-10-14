@@ -75,7 +75,14 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
 
   // 使用 table_name.table记录一个表的元数据
   // 判断表文件是否已经存在
-  int fd = ::open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+  /**
+   * O_WRONLY: 以写入模式打开文件
+   * O_CREAT: 如果文件不存在，则创建文件
+   * O_EXCL: 如果同时指定了O_CREAT和O_EXCL，且文件已经存在，则open()调用会失败
+   * O_CLOEXEC: 在fork()子进程时，关闭文件描述符
+   * 0600: 文件权限，只有文件所有者有读写权限
+   */
+  int fd = ::open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600); // path参数表示关系的元数据文件
   if (fd < 0) {
     if (EEXIST == errno) {
       LOG_ERROR("Failed to create table file, it has been created. %s, EEXIST, %s", path, strerror(errno));

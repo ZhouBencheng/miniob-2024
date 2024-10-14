@@ -30,6 +30,7 @@ string table_meta_file(const char *base_dir, const char *table_name)
 
 string table_data_file(const char *base_dir, const char *table_name)
 {
+  /* 在filesystem中，/运算符被重载用于连接路径片段 */
   return filesystem::path(base_dir) / (string(table_name) + TABLE_DATA_SUFFIX);
 }
 

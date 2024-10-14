@@ -45,9 +45,9 @@ public:
 
   /**
    * 创建一个表
-   * @param path 元数据保存的文件(完整路径)
+   * @param path 元数据保存的文件(完整路径 path_to_db/table.table)
    * @param name 表名
-   * @param base_dir 表数据存放的路径
+   * @param base_dir 该数据库中表数据存放的路径
    * @param attribute_count 字段个数
    * @param attributes 字段
    */

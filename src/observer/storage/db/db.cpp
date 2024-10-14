@@ -161,6 +161,37 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   return RC::SUCCESS;
 }
 
+RC Db::drop_table(const char *table_name) {
+  RC rc = RC::SUCCESS;
+  // 获取元数据文件路径和表数据文件路径
+  string meta_file_path = table_meta_file(path_.c_str(), table_name);
+  string data_file_path = table_data_file(path_.c_str(), table_name);
+
+  // 删除表元数据文件
+  if (remove(meta_file_path.c_str()) != 0) {
+    LOG_ERROR("Failed to remove table meta file. file=%s, errmsg=%s", meta_file_path.c_str(), strerror(errno));
+    return RC::IOERR_DELETE;
+  }
+
+  // 删除表数据文件
+  if (remove(data_file_path.c_str()) != 0) {
+    LOG_ERROR("Failed to remove table data file. file=%s, errmsg=%s", data_file_path.c_str(), strerror(errno));
+    return RC::IOERR_DELETE;
+  }
+
+  // 关闭BufferPoolManager中对该文件缓存的句柄
+  BufferPoolManager &bpm = buffer_pool_manager();
+  rc                     = bpm.close_file(data_file_path.c_str());
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to close file. file=%s, rc=%d:%s", data_file_path.c_str(), rc, strrc(rc));
+    return rc;
+  }
+
+  opened_tables_.erase(table_name);
+
+  return rc;
+}
+
 Table *Db::find_table(const char *table_name) const
 {
   unordered_map<string, Table *>::const_iterator iter = opened_tables_.find(table_name);
