@@ -318,7 +318,6 @@ RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<Logical
   }
 
   logical_operator = std::move(update_oper);
-  LOG_DEBUG("update logical operator created");
   return RC::SUCCESS;
 }
 
