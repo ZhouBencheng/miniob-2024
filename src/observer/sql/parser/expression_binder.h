@@ -26,6 +26,9 @@ public:
 
   void add_table(Table *table) { query_tables_.push_back(table); }
 
+  /**
+   * @brief 在query_tables_中根据表名称查找表，存在则返回Table指针，否则返回nullptr
+   */
   Table *find_table(const char *table_name) const;
 
   const std::vector<Table *> &query_tables() const { return query_tables_; }

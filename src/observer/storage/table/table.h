@@ -32,6 +32,7 @@ class IndexScanner;
 class RecordDeleter;
 class Trx;
 class Db;
+class Field;
 
 /**
  * @brief 表
@@ -78,6 +79,7 @@ public:
   RC insert_record(Record &record);
   RC delete_record(const Record &record);
   RC delete_record(const RID &rid);
+  RC update_record(Record &record, const Value &value, const FieldMeta *field);
   RC get_record(const RID &rid, Record &record);
 
   RC recover_insert_record(Record &record);
@@ -103,6 +105,7 @@ public:
 public:
   int32_t     table_id() const { return table_meta_.table_id(); }
   const char *name() const;
+  Field      *find_field(const char *field_name) const;
 
   Db *db() const { return db_; }
 

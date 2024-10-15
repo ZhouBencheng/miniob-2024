@@ -34,6 +34,7 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
   unique_ptr<LogicalOperator> logical_operator;
 
   RC rc = create_logical_plan(sql_event, logical_operator);
+  LOG_DEBUG("the return code of create_logical_plan is %s", strrc(rc));
   if (rc != RC::SUCCESS) {
     if (rc != RC::UNIMPLEMENTED) {
       LOG_WARN("failed to create logical plan. rc=%s", strrc(rc));
@@ -41,25 +42,33 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     return rc;
   }
 
+  LOG_DEBUG("logical plan created, begin to assert it.");
   ASSERT(logical_operator, "logical operator is null");
+  LOG_DEBUG("Logical plan created successfully.");
 
   rc = rewrite(logical_operator);
+  LOG_DEBUG("rewrite logical operator");
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to rewrite plan. rc=%s", strrc(rc));
     return rc;
   }
 
   rc = optimize(logical_operator);
+  LOG_DEBUG("optimize logical operator");
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to optimize plan. rc=%s", strrc(rc));
     return rc;
   }
 
+  LOG_DEBUG("initiate a physical operator");
   unique_ptr<PhysicalOperator> physical_operator;
   rc = generate_physical_plan(logical_operator, physical_operator, sql_event->session_event()->session());
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to generate physical plan. rc=%s", strrc(rc));
     return rc;
+  }
+  if (physical_operator == nullptr) {
+    LOG_WARN("physical operator is null");
   }
 
   sql_event->set_operator(std::move(physical_operator));
@@ -77,6 +86,7 @@ RC OptimizeStage::generate_physical_plan(
     unique_ptr<LogicalOperator> &logical_operator, unique_ptr<PhysicalOperator> &physical_operator, Session *session)
 {
   RC rc = RC::SUCCESS;
+  LOG_TRACE("try to generate a physical plan");
   if (session->get_execution_mode() == ExecutionMode::CHUNK_ITERATOR && LogicalOperator::can_generate_vectorized_operator(logical_operator->type())) {
     LOG_INFO("use chunk iterator");
     session->set_used_chunk_mode(true);
@@ -113,6 +123,7 @@ RC OptimizeStage::create_logical_plan(SQLStageEvent *sql_event, unique_ptr<Logic
 {
   Stmt *stmt = sql_event->stmt();
   if (nullptr == stmt) {
+    LOG_DEBUG("The stmt in the sql_event is null");
     return RC::UNIMPLEMENTED;
   }
 

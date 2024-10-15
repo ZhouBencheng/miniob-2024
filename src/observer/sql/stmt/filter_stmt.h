@@ -24,6 +24,7 @@ class Db;
 class Table;
 class FieldMeta;
 
+// 过滤条件中操作对象类型
 struct FilterObj
 {
   bool  is_attr;
@@ -43,6 +44,7 @@ struct FilterObj
   }
 };
 
+// 一个完整的过滤单元，包含左右操作对象和运算符
 class FilterUnit
 {
 public:
@@ -66,7 +68,7 @@ private:
 };
 
 /**
- * @brief Filter/谓词/过滤语句
+ * @brief Filter/谓词/过滤语句，用vector封装多个过滤单元
  * @ingroup Statement
  */
 class FilterStmt

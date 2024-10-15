@@ -596,6 +596,7 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid)
     // 上面的逻辑是先加lock锁，然后加页面写锁，这里是先加上
     // 了页面写锁，然后加lock的锁，但是不会引起死锁。
     // 为什么？
+    // 因为在一方持有lock锁的情况下，另一方持有的页面锁一定不会是前者请求的页面锁
     lock_.lock();
     free_pages_.insert(current_page_num);
     lock_.unlock();
@@ -603,6 +604,20 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid)
 
   // 找到空闲位置
   return record_page_handler->insert_record(data, rid);
+}
+
+RC RecordFileHandler::update_record(const RID &rid, const char *data)
+{
+  unique_ptr<RecordPageHandler> record_page_handler(RecordPageHandler::create(storage_format_));
+
+  // 使用RID中记录的页信息，初始化管理一个页中记录的对象RecordPageHandler
+  RC rc = record_page_handler->init(*disk_buffer_pool_, *log_handler_, rid.page_num, ReadWriteMode::READ_WRITE);
+  if (OB_FAIL(rc)) {
+    LOG_ERROR("Failed to init record page handler.page number=%d", rid.page_num);
+    return rc;
+  }
+
+  return record_page_handler->update_record(rid, data);
 }
 
 RC RecordFileHandler::recover_insert_record(const char *data, int record_size, const RID &rid)

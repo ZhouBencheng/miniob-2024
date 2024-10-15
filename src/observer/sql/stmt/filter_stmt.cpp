@@ -27,6 +27,7 @@ FilterStmt::~FilterStmt()
   filter_units_.clear();
 }
 
+// 将where条件子句中的每一个过滤条件转化为FilterUnit对象，并封装在vector容器中，默认所有条件之间是AND关系
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
 {
@@ -50,6 +51,15 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   return rc;
 }
 
+/**
+ * @brief 当过滤条件中操作对象是属性是才调用该函数，根据该属性获取相应的Table指针和FieldMeta指针
+ * @param db              指向Db数据库类型的指针
+ * @param default_table   默认表指向FROM子句中唯一存在的表，当FROM中有多个表，默认表空指针；当where子句中属性没有指定关系名时，使用默认表
+ * @param tables          表名到表指针的映射表，存放FROM子句钟中存在的表
+ * @param attr            囊括属性名和关系名的结构体
+ * @param table           (out)指向Table表类型的指针
+ * @param field           (out)指向FieldMeta字段类型的指针
+ */
 RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
 {

@@ -178,6 +178,7 @@ RC PlainCommunicator::write_result(SessionEvent *event, bool &need_disconnect)
   return rc;
 }
 
+// 该函数将执行sql_result中的物理算子
 RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disconnect)
 {
   RC rc = RC::SUCCESS;

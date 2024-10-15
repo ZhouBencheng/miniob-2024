@@ -153,6 +153,8 @@ private:
   std::string table_name_;
 };
 
+// 未绑定的字段表达式，需要在解析阶段解析为FieldExpr
+// 该类型中包含字段所属的表明和字段名
 class UnboundFieldExpr : public Expression
 {
 public:
@@ -421,9 +423,12 @@ public:
   AttrType value_type() const override { return child_->value_type(); }
 
 private:
-  std::string                 aggregate_name_;
-  std::unique_ptr<Expression> child_;
+  std::string                 aggregate_name_; // 聚合函数名称
+  std::unique_ptr<Expression> child_;          // 子表达式
 };
+
+// 显然UNBOUND_AGGREATE表达使用聚合函数名称代表函数，函数类型未解析
+// AGGREATE表达式的聚合函数类型明确
 
 class AggregateExpr : public Expression
 {
