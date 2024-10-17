@@ -63,7 +63,7 @@ Tuple *ProjectPhysicalOperator::current_tuple()
 
 RC ProjectPhysicalOperator::tuple_schema(TupleSchema &schema) const
 {
-  for (const unique_ptr<Expression> &expression : expressions_) {
+  for (const unique_ptr<Expression> &expression : expressions_) { // 遍历ProjectPhysicalOperator类型中的Expression数组(bound)
     schema.append_cell(expression->name());
   }
   return RC::SUCCESS;

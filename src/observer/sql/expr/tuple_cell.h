@@ -17,6 +17,9 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field_meta.h"
 #include <iostream>
 
+/**
+ * @brief TupleCellSpec描述一个元组中的一个字段，是查询结果的表元数据
+ */
 class TupleCellSpec final
 {
 public:
@@ -37,5 +40,5 @@ public:
 private:
   std::string table_name_;
   std::string field_name_;
-  std::string alias_;
+  std::string alias_;       // 查询结果的字段名称
 };

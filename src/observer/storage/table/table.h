@@ -93,6 +93,8 @@ public:
 
   RecordFileHandler *record_handler() const { return record_handler_; }
 
+  vector<Index *> &indexes() { return indexes_; }
+
   /**
    * @brief 可以在页面锁保护的情况下访问记录
    * @details 当前是在事务中访问记录，为了提供一个“原子性”的访问模式

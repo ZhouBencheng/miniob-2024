@@ -135,6 +135,17 @@ private:
   std::string name_;
 };
 
+class NoneExpr : public Expression
+{
+public:
+  NoneExpr() = default;
+  virtual ~NoneExpr() = default;
+
+  ExprType type() const override { return ExprType::NONE; }
+  AttrType value_type() const override { return AttrType::UNDEFINED; }
+  RC get_value(const Tuple &tuple, Value &value) const override { return RC::NOT_EXIST; }
+};
+
 class StarExpr : public Expression
 {
 public:

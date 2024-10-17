@@ -29,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 #include "storage/clog/disk_log_handler.h"
 #include "storage/clog/integrated_log_replayer.h"
+#include "storage/index/index.h"
 
 using namespace common;
 
@@ -177,6 +178,18 @@ RC Db::drop_table(const char *table_name) {
   if (remove(data_file_path.c_str()) != 0) {
     LOG_ERROR("Failed to remove table data file. file=%s, errmsg=%s", data_file_path.c_str(), strerror(errno));
     return RC::IOERR_DELETE;
+  }
+
+  // 删除表索引文件
+  Table *table = find_table(table_name);
+  string index_file_path;
+  for (auto it : table->indexes()) {
+    const char *index_name = it->index_meta().name();
+    index_file_path = table_index_file(path_.c_str(), table_name, index_name);
+    if (remove(index_file_path.c_str()) != 0) {
+      LOG_ERROR("Failed to remove table index file. file=%s, errmsg=%s", index_file_path.c_str(), strerror(errno));
+      return RC::IOERR_DELETE;
+    }
   }
 
   // 关闭BufferPoolManager中对该文件缓存的句柄
