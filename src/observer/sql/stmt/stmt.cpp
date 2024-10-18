@@ -118,14 +118,6 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
       return UpdateStmt::create(db, sql_node.update, stmt);
     }
 
-    case SCF_DROP_TABLE: {
-      return DropTableStmt::create(db, sql_node.drop_table, stmt);
-    }
-
-    case SCF_UPDATE: {
-      return UpdateStmt::create(db, sql_node.update, stmt);
-    }
-
     default: {
       LOG_INFO("Command::type %d doesn't need to create statement.", sql_node.flag);
     } break;

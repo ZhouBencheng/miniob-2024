@@ -30,5 +30,6 @@ RC DateType::set_value_from_str(Value &val, const string &data) const {
 
 RC DateType::to_string(const Value &val, string &result) const {
   ASSERT(val.attr_type() == AttrType::DATES, "val type is not date.");
-  return common::date_to_string(val.get_date(), result);
+  int date = val.get_date();
+  return common::date_to_string(date, result);
 }
