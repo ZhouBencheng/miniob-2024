@@ -50,6 +50,22 @@ RC IntegerType::negative(const Value &val, Value &result) const
   return RC::SUCCESS;
 }
 
+int IntegerType::cast_cost(AttrType type)
+{
+  switch (type) {
+    case AttrType::INTS:
+      return 0;
+    case AttrType::FLOATS:
+      return 2;
+    case AttrType::CHARS:
+      return 2;
+    case AttrType::DATES:
+      return 3;
+    default:
+      return INT32_MAX;
+  }
+}
+
 RC IntegerType::set_value_from_str(Value &val, const string &data) const
 {
   RC                rc = RC::SUCCESS;

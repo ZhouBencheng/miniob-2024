@@ -74,6 +74,13 @@ public:
 
   /**
    * @brief 将 val 转换为 type 类型，并将结果保存到 result 中
+   * @details 设置同类型转换为最低成本——0
+   *          int-float选择int->float
+   *          int-char
+   *          int-date 
+   *          float-char
+   *          float-date
+   *          char-date
    */
   virtual RC cast_to(const Value &val, AttrType type, Value &result) const { return RC::UNSUPPORTED; }
 
