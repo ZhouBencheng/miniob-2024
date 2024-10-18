@@ -126,7 +126,7 @@ RC PhysicalPlanGenerator::create_vec(LogicalOperator &logical_operator, unique_p
 }
 
 
-
+// TableGetLogicalOperator在物理算子生成器中生成TableScanPhysicalOperator
 RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, unique_ptr<PhysicalOperator> &oper)
 {
   vector<unique_ptr<Expression>> &predicates = table_get_oper.predicates();
@@ -460,7 +460,7 @@ RC PhysicalPlanGenerator::create_vec_plan(ProjectLogicalOperator &project_oper, 
 
   if (child_phy_oper != nullptr) {
     std::vector<Expression *> expressions;
-    for (auto &expr : project_operator->expressions()) {
+    for (auto &expr : project_operator->expressions()) { //  将ProjectLogicalOperator中的表达式转移到ExprVecPhysicalOperator中
       expressions.push_back(expr.get());
     }
     auto expr_operator = make_unique<ExprVecPhysicalOperator>(std::move(expressions));
@@ -470,7 +470,7 @@ RC PhysicalPlanGenerator::create_vec_plan(ProjectLogicalOperator &project_oper, 
 
   oper = std::move(project_operator);
 
-  LOG_TRACE("create a project physical operator");
+  LOG_TRACE("create a project vec physical operator");
   return rc;
 }
 

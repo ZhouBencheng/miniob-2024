@@ -20,7 +20,7 @@ class Value;
 
 /**
  * @brief 定义了数据类型相关的操作，比如比较运算、算术运算等
- * @defgroup 数据类型
+ * @defgroup DataType
  * @details 数据类型定义的算术运算中，比如 add、subtract 等，将按照当前数据类型设置最终结果值的类型。
  * 参与运算的参数类型不一定相同，不同的类型进行运算是否能够支持需要参考各个类型的实现。
  */
@@ -74,6 +74,13 @@ public:
 
   /**
    * @brief 将 val 转换为 type 类型，并将结果保存到 result 中
+   * @details 设置同类型转换为最低成本——0
+   *          int-float选择int->float
+   *          int-char
+   *          int-date 
+   *          float-char
+   *          float-date
+   *          char-date
    */
   virtual RC cast_to(const Value &val, AttrType type, Value &result) const { return RC::UNSUPPORTED; }
 

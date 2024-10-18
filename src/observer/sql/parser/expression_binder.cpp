@@ -356,6 +356,7 @@ RC ExpressionBinder::bind_arithmetic_expression(
   return RC::SUCCESS;
 }
 
+// 检查聚合表达式的合法性，包括聚合函数参数类型的检查和子表达式是否聚合嵌套的检查
 RC check_aggregate_expression(AggregateExpr &expression)
 {
   // 必须有一个子表达式
@@ -401,6 +402,7 @@ RC check_aggregate_expression(AggregateExpr &expression)
   return rc;
 }
 
+// 对一个聚合表达式进行绑定，注意聚合表达式中可以嵌套‘*’表达式或FieldExpr表达式
 RC ExpressionBinder::bind_aggregate_expression(
     unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
@@ -439,6 +441,7 @@ RC ExpressionBinder::bind_aggregate_expression(
     }
   }
 
+  // 此处已经将聚合表达式的聚合函数名称转化为聚合函数类型，构造绑定好的AggregateExpr对象
   auto aggregate_expr = make_unique<AggregateExpr>(aggregate_type, std::move(child_expr));
   aggregate_expr->set_name(unbound_aggregate_expr->name());
   rc = check_aggregate_expression(*aggregate_expr);

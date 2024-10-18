@@ -42,33 +42,25 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     return rc;
   }
 
-  LOG_DEBUG("logical plan created, begin to assert it.");
   ASSERT(logical_operator, "logical operator is null");
-  LOG_DEBUG("Logical plan created successfully.");
 
   rc = rewrite(logical_operator);
-  LOG_DEBUG("rewrite logical operator");
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to rewrite plan. rc=%s", strrc(rc));
     return rc;
   }
 
   rc = optimize(logical_operator);
-  LOG_DEBUG("optimize logical operator");
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to optimize plan. rc=%s", strrc(rc));
     return rc;
   }
 
-  LOG_DEBUG("initiate a physical operator");
   unique_ptr<PhysicalOperator> physical_operator;
   rc = generate_physical_plan(logical_operator, physical_operator, sql_event->session_event()->session());
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to generate physical plan. rc=%s", strrc(rc));
     return rc;
-  }
-  if (physical_operator == nullptr) {
-    LOG_WARN("physical operator is null");
   }
 
   sql_event->set_operator(std::move(physical_operator));

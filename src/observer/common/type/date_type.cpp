@@ -31,12 +31,5 @@ RC DateType::set_value_from_str(Value &val, const string &data) const {
 RC DateType::to_string(const Value &val, string &result) const {
   ASSERT(val.attr_type() == AttrType::DATES, "val type is not date.");
   int date = val.get_date();
-  int  year  = date / 10000;
-  int  month = date % 10000 / 100;
-  int  day   = date % 100;
-  LOG_DEBUG("date=%d, year=%d, month=%d, day=%d", date, year, month, day);
-  stringstream ss;
-  ss << year << "-" << std::setw(2) << std::setfill('0') << month << "-" << std::setw(2) << std::setfill('0') << day;
-  result = ss.str();
-  return RC::SUCCESS;
+  return common::date_to_string(date, result);
 }

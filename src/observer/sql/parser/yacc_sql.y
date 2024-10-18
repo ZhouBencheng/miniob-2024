@@ -74,6 +74,11 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         INDEX
         CALC
         SELECT
+        COUNT
+        SUM
+        MAX
+        MIN
+        AVG
         DESC
         SHOW
         SYNC
@@ -89,6 +94,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         INT_T
         STRING_T
         FLOAT_T
+        VECTOR_T
         DATE_T
         HELP
         EXIT
@@ -183,7 +189,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 
 %left '+' '-'
 %left '*' '/'
-%nonassoc UMINUS
+%nonassoc UMINUS /* %nonasoc表示运算符的非结合特性，改行代码定义一个一元符号运算符UMINUS */
 %%
 
 commands: command_wrapper opt_semicolon  //commands or sqls. parser starts here.
@@ -362,6 +368,7 @@ type:
     | STRING_T { $$ = static_cast<int>(AttrType::CHARS); }
     | FLOAT_T  { $$ = static_cast<int>(AttrType::FLOATS); }
     | DATE_T   { $$ = static_cast<int>(AttrType::DATES); }
+    | VECTOR_T { $$ = static_cast<int>(AttrType::VECTORS); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
     INSERT INTO ID VALUES LBRACE value value_list RBRACE /* bison解析器从右到左解析规则，因此value_list中存储的元素顺序相反 */
@@ -483,7 +490,11 @@ calc_stmt:
     ;
 
 expression_list:
-    expression
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | expression
     {
       $$ = new std::vector<std::unique_ptr<Expression>>;
       $$->emplace_back($1);
@@ -515,7 +526,7 @@ expression:
       $$ = $2;
       $$->set_name(token_name(sql_string, &@$));
     }
-    | '-' expression %prec UMINUS {
+    | '-' expression %prec UMINUS { // 此处用于匹配取反运算
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
     | value {
@@ -531,6 +542,51 @@ expression:
     }
     | '*' {
       $$ = new StarExpr();
+    }
+    | COUNT LBRACE expression_list RBRACE {
+      if ($3 == nullptr || $3->size() != 1) {
+        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid COUNT arguments");
+        Expression *none_expr = new NoneExpr();
+        $$ = new UnboundAggregateExpr("COUNT", none_expr);
+      } else {
+        $$ = create_aggregate_expression("COUNT", $3->at(0).get(), sql_string, &@$);
+      }
+    } 
+    | SUM LBRACE expression_list RBRACE {
+      if ($3 == nullptr || $3->size() != 1) {
+        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid SUM arguments");
+        Expression *none_expr = new NoneExpr();
+        $$ = new UnboundAggregateExpr("SUM", none_expr);
+      } else {
+        $$ = create_aggregate_expression("SUM", $3->at(0).get(), sql_string, &@$);
+      }
+    } 
+    | MAX LBRACE expression_list RBRACE {
+      if ($3 == nullptr || $3->size() != 1) {
+        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid MAX arguments");
+        Expression *none_expr = new NoneExpr();
+        $$ = new UnboundAggregateExpr("MAX", none_expr);
+      } else {
+        $$ = create_aggregate_expression("MAX", $3->at(0).get(), sql_string, &@$);
+      }
+    } 
+    | MIN LBRACE expression_list RBRACE {
+      if ($3 == nullptr || $3->size() != 1) {
+        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid MIN arguments");
+        Expression *none_expr = new NoneExpr();
+        $$ = new UnboundAggregateExpr("MIN", none_expr);
+      } else {
+        $$ = create_aggregate_expression("MIN", $3->at(0).get(), sql_string, &@$);
+      }
+    } 
+    | AVG LBRACE expression_list RBRACE {
+      if ($3 == nullptr || $3->size() != 1) {
+        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid AVG arguments");
+        Expression *none_expr = new NoneExpr();
+        $$ = new UnboundAggregateExpr("AVG", none_expr);
+      } else {
+        $$ = create_aggregate_expression("AVG", $3->at(0).get(), sql_string, &@$);
+      }
     }
     // your code here
     ;

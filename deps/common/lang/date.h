@@ -6,6 +6,7 @@
 
 #include "common/lang/string.h"
 #include "src/observer/common/rc.h"
+#include <iomanip>
 
 namespace common {
 
@@ -44,8 +45,9 @@ inline RC date_to_string(int32_t date, string &str)
   int  year  = date / 10000;
   int  month = date % 10000 / 100;
   int  day   = date % 100;
+  LOG_DEBUG("date=%d, year=%d, month=%d, day=%d", date, year, month, day);
   stringstream ss;
-  ss << year << "-" << month << "-" << day;
+  ss << year << "-" << std::setw(2) << std::setfill('0') << month << "-" << std::setw(2) << std::setfill('0') << day;
   str = ss.str();
   return RC::SUCCESS;
 }

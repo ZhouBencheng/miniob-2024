@@ -48,6 +48,9 @@ public:
 
   RC open();
   RC close();
+  /**
+   * @brief 调用operator_算子中的current_tuple()方法，将tuple信息记录在参数tuple中返回 
+   */
   RC next_tuple(Tuple *&tuple);
   RC next_chunk(Chunk &chunk);
 

@@ -21,7 +21,9 @@ int IntegerType::compare(const Value &left, const Value &right) const
   if (right.attr_type() == AttrType::INTS) {
     return common::compare_int((void *)&left.value_.int_value_, (void *)&right.value_.int_value_);
   } else if (right.attr_type() == AttrType::FLOATS) {
-    return common::compare_float((void *)&left.value_.int_value_, (void *)&right.value_.int_value_);
+    float left_val  = left.get_float();
+    float right_val = right.get_float();
+    return common::compare_float((void *)&left_val, (void *)&right_val);
   }
   return INT32_MAX;
 }
@@ -48,6 +50,22 @@ RC IntegerType::negative(const Value &val, Value &result) const
 {
   result.set_int(-val.get_int());
   return RC::SUCCESS;
+}
+
+int IntegerType::cast_cost(AttrType type)
+{
+  switch (type) {
+    case AttrType::INTS:
+      return 0;
+    case AttrType::FLOATS:
+      return 2;
+    case AttrType::CHARS:
+      return 2;
+    case AttrType::DATES:
+      return 3;
+    default:
+      return INT32_MAX;
+  }
 }
 
 RC IntegerType::set_value_from_str(Value &val, const string &data) const
