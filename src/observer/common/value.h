@@ -52,6 +52,7 @@ public:
 
   Value &operator=(const Value &other);
   Value &operator=(Value &&other) noexcept;
+  Value &operator=(Value &&other) noexcept;
 
   void reset();
 

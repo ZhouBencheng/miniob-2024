@@ -44,9 +44,9 @@ inline RC date_to_string(int32_t date, string &str)
   int  year  = date / 10000;
   int  month = date % 10000 / 100;
   int  day   = date % 100;
-  stringstream ss;
-  ss << year << "-" << month << "-" << day;
-  str = ss.str();
+  char buf[11];
+  snprintf(buf, sizeof(buf), "%04d-%02d-%02d", year, month, day);
+  str = buf;
   return RC::SUCCESS;
 }
 
