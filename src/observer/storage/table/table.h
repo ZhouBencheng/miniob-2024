@@ -124,7 +124,7 @@ public:
 
 private:
   Db                *db_ = nullptr;
-  string             base_dir_;
+  string             base_dir_;                     // 表数据存放路径
   TableMeta          table_meta_;
   DiskBufferPool    *data_buffer_pool_ = nullptr;  /// 数据文件关联的buffer pool
   RecordFileHandler *record_handler_   = nullptr;  /// 记录操作

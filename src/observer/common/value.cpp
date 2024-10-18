@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include "common/lang/date.h"
 
 Value::Value(int val) { set_int(val); }
 
@@ -75,7 +76,7 @@ Value &Value::operator=(const Value &other)
   return *this;
 }
 
-Value &Value::operator=(Value &&other)
+Value &Value::operator=(Value &&other) noexcept // 移动赋值需要标注函数为noexcept
 {
   if (this == &other) {
     return *this;
@@ -90,7 +91,7 @@ Value &Value::operator=(Value &&other)
   return *this;
 }
 
-void Value::reset()
+void Value::reset() // 重置value，属性类型未知，属性值清空
 {
   switch (attr_type_) {
     case AttrType::CHARS:
@@ -113,7 +114,7 @@ void Value::set_data(char *data, int length)
     case AttrType::CHARS: {
       set_string(data, length);
     } break;
-    case AttrType::INTS: {
+    case AttrType::INTS: case AttrType::DATES: { // 此处推测data指向正确的底层数据，对此DATES使用整型存储对标INTS
       value_.int_value_ = *(int *)data;
       length_           = length;
     } break;
@@ -137,6 +138,14 @@ void Value::set_int(int val)
   attr_type_        = AttrType::INTS;
   value_.int_value_ = val;
   length_           = sizeof(val);
+}
+
+void Value::set_date(int val) // set_date设置整型的版本
+{
+  reset();
+  attr_type_ = AttrType::DATES;
+  value_.int_value_ = val;
+  length_ = sizeof(val);
 }
 
 void Value::set_float(float val)
@@ -175,6 +184,21 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
 }
 
+void Value::set_date(const char *s, int len) // set_date设置字符串的版本
+{
+  reset();
+  attr_type_ = AttrType::DATES;
+  ASSERT(s != nullptr, "date string is null");
+  int32_t date = INT32_MAX;
+  RC rc =common::date_from_string(s, date);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to convert string to date. s=%s", s);
+    return;
+  }
+  value_.int_value_ = date;
+  length_ = sizeof(date);
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
@@ -189,6 +213,9 @@ void Value::set_value(const Value &value)
     } break;
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
+    } break;
+    case AttrType::DATES: {
+      set_date(value.get_date());
     } break;
     default: {
       ASSERT(false, "got an invalid value type");
@@ -206,7 +233,7 @@ void Value::set_string_from_other(const Value &other)
   }
 }
 
-const char *Value::data() const
+const char *Value::data() const // 获取底层数据的首字节指针，不论是否为CHARS
 {
   switch (attr_type_) {
     case AttrType::CHARS: {
@@ -326,4 +353,34 @@ bool Value::get_boolean() const
     }
   }
   return false;
+}
+
+int Value::get_date() const
+{
+  switch (attr_type_) {
+    case AttrType::DATES: {
+      return value_.int_value_;
+    }
+    case AttrType::CHARS: {
+      int date = 0;
+      RC rc = common::date_from_string(string(value_.pointer_value_), date);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to convert string to date. s=%s", value_.pointer_value_);
+      }
+      return date;
+    }
+    case AttrType::INTS: {
+      string date;
+      RC rc = common::date_to_string(value_.int_value_, date);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to convert int to date. int=%d", value_.int_value_);
+        return 0;
+      }
+      return value_.int_value_;
+    }
+    default: {
+      LOG_WARN("unknown data type. type=%d", attr_type_);
+      return 0;
+    }
+  }
 }

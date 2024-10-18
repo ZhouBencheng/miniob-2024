@@ -12,8 +12,11 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/type/attr_type.h"
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "vectors", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "vector", "dates", "booleans"}; // 添加日期类型
 
+/**
+ * @brief 将AttrType类型转换为字符串
+ */
 const char *attr_type_to_string(AttrType type)
 {
   if (type >= AttrType::UNDEFINED && type < AttrType::MAXTYPE) {
@@ -22,6 +25,9 @@ const char *attr_type_to_string(AttrType type)
   return "unknown";
 }
 
+/**
+ * @brief 将字符串转换为AttrType类型
+ */
 AttrType attr_type_from_string(const char *s)
 {
   for (unsigned int i = 0; i < sizeof(ATTR_TYPE_NAME) / sizeof(ATTR_TYPE_NAME[0]); i++) {

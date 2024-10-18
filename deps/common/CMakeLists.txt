@@ -7,7 +7,10 @@ FILE(GLOB_RECURSE ALL_SRC  *.cpp)
 
 #SHARED，动态库
 #STATIC，静态库
-ADD_LIBRARY(common STATIC ${ALL_SRC} )
+ADD_LIBRARY(common STATIC ${ALL_SRC}
+        lang/date.h
+        lang/date.h
+)
 
 
 IF(USE_MUSL_LIBC)

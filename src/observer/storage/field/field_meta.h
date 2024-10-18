@@ -51,8 +51,8 @@ public:
   static RC from_json(const Json::Value &json_value, FieldMeta &field);
 
 protected:
-  string   name_;
-  AttrType attr_type_;
+  string   name_;         // 属性名
+  AttrType attr_type_;    // 属性类型
   int      attr_offset_;
   int      attr_len_;
   bool     visible_;

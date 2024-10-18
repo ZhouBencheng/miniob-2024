@@ -79,7 +79,11 @@ extern int yydebug;
     INT_T = 280,                   /* INT_T  */
     STRING_T = 281,                /* STRING_T  */
     FLOAT_T = 282,                 /* FLOAT_T  */
+<<<<<<< HEAD
     VECTOR_T = 283,                /* VECTOR_T  */
+=======
+    DATE_T = 283,                  /* DATE_T  */
+>>>>>>> d6359f7 (💨 转移开发环境)
     HELP = 284,                    /* HELP  */
     EXIT = 285,                    /* EXIT  */
     DOT = 286,                     /* DOT  */

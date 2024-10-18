@@ -32,7 +32,7 @@ See the Mulan PSL v2 for more details. */
 
 using namespace common;
 
-bool *&_get_init()
+bool *&_get_init() // *表示指向bool的指针，&表示返回bool指针的引用
 {
   static bool  util_init   = false;
   static bool *util_init_p = &util_init;
