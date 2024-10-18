@@ -16,7 +16,6 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
-#include "common/lang/date.h"
 
 InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
     : table_(table), values_(values), value_amount_(value_amount)
@@ -47,21 +46,6 @@ RC InsertStmt::create(Db *db, InsertSqlNode &inserts, Stmt *&stmt)
   if (field_num != value_num) { // 检查插入的值的数量是否与表的字段数量相等
     LOG_WARN("schema mismatch. value num=%d, field num in schema=%d", value_num, field_num);
     return RC::SCHEMA_FIELD_MISSING;
-  }
-
-  auto fields = table_meta.field_metas(); // 获取table中table_meta中的field_metas数组
-  for (auto i = 0; i < fields->size(); i++) {
-    if (fields->at(i).type() == AttrType::DATES) {
-      int date = 0;
-      common::date_from_string(inserts.values[i].get_string(), date);
-      inserts.values[i].set_type(AttrType::DATES);
-      inserts.values[i].set_data((char*)&date, sizeof(int));
-    }
-    if (inserts.values[i].attr_type() != fields->at(i).type()) {
-      LOG_WARN("schema mismatch. value type=%d, field type in schema=%d",
-          inserts.values[i].attr_type(), fields->at(i).type());
-      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-    }
   }
 
   // everything alright

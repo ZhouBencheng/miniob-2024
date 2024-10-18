@@ -30,6 +30,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record_manager.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
+#include "storage/field/field.h"
 
 Table::~Table()
 {
@@ -255,6 +256,16 @@ const char *Table::name() const { return table_meta_.name(); }
 
 const TableMeta &Table::table_meta() const { return table_meta_; }
 
+Field *Table::find_field(const char *field_name) const
+{
+  const FieldMeta *field_meta = table_meta_.field(field_name);
+  if (field_meta == nullptr) {
+    return nullptr;
+  }
+  Field *field = new Field(this, field_meta);
+  return field;
+}
+
 RC Table::make_record(int value_num, const Value *values, Record &record)
 {
   RC rc = RC::SUCCESS;
@@ -293,6 +304,34 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   }
 
   record.set_data_owner(record_data, record_size);
+  return RC::SUCCESS;
+}
+
+RC Table::update_record(Record &record, const Value &value, const FieldMeta *field) 
+{
+  RC rc = RC::SUCCESS;
+  // 判断并尝试转换value类型
+  if (value.attr_type() != field->type()) {
+    Value real_value;
+    rc = Value::cast_to(value, field->type(), real_value);
+    if (OB_FAIL(rc)) {
+      LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
+          table_meta_.name(), field->name(), value.to_string().c_str());
+      return rc;
+    }
+    rc = this->set_value_to_record(record.data(), real_value, field);
+  } else {
+    rc = this->set_value_to_record(record.data(), value, field);
+  }
+
+  // 使用Table对象中的RecordFileHandler成员将新的记录更新回磁盘文件
+  rc = record_handler_->update_record(record.rid(), record.data());
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to update record. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
+    return rc;
+  }
+
+  // TODO 更新索引
   return RC::SUCCESS;
 }
 

@@ -29,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 #include "storage/clog/disk_log_handler.h"
 #include "storage/clog/integrated_log_replayer.h"
+#include "storage/index/index.h"
 
 using namespace common;
 
@@ -159,6 +160,49 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   opened_tables_[table_name] = table;
   LOG_INFO("Create table success. table name=%s, table_id:%d", table_name, table_id);
   return RC::SUCCESS;
+}
+
+RC Db::drop_table(const char *table_name) {
+  RC rc = RC::SUCCESS;
+  // 获取元数据文件路径和表数据文件路径
+  string meta_file_path = table_meta_file(path_.c_str(), table_name);
+  string data_file_path = table_data_file(path_.c_str(), table_name);
+
+  // 删除表元数据文件
+  if (remove(meta_file_path.c_str()) != 0) {
+    LOG_ERROR("Failed to remove table meta file. file=%s, errmsg=%s", meta_file_path.c_str(), strerror(errno));
+    return RC::IOERR_DELETE;
+  }
+
+  // 删除表数据文件
+  if (remove(data_file_path.c_str()) != 0) {
+    LOG_ERROR("Failed to remove table data file. file=%s, errmsg=%s", data_file_path.c_str(), strerror(errno));
+    return RC::IOERR_DELETE;
+  }
+
+  // 删除表索引文件
+  Table *table = find_table(table_name);
+  string index_file_path;
+  for (auto it : table->indexes()) {
+    const char *index_name = it->index_meta().name();
+    index_file_path = table_index_file(path_.c_str(), table_name, index_name);
+    if (remove(index_file_path.c_str()) != 0) {
+      LOG_ERROR("Failed to remove table index file. file=%s, errmsg=%s", index_file_path.c_str(), strerror(errno));
+      return RC::IOERR_DELETE;
+    }
+  }
+
+  // 关闭BufferPoolManager中对该文件缓存的句柄
+  BufferPoolManager &bpm = buffer_pool_manager();
+  rc                     = bpm.close_file(data_file_path.c_str());
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to close file. file=%s, rc=%d:%s", data_file_path.c_str(), rc, strrc(rc));
+    return rc;
+  }
+
+  opened_tables_.erase(table_name);
+
+  return rc;
 }
 
 Table *Db::find_table(const char *table_name) const

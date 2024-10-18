@@ -388,6 +388,8 @@ public:
    */
   RC insert_record(const char *data, int record_size, RID *rid);
 
+  RC update_record(const RID &rid, const char *data);
+
   /**
    * @brief 数据库恢复时，在指定文件指定位置插入数据
    *

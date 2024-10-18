@@ -32,6 +32,7 @@ class IndexScanner;
 class RecordDeleter;
 class Trx;
 class Db;
+class Field;
 
 /**
  * @brief 表
@@ -78,6 +79,7 @@ public:
   RC insert_record(Record &record);
   RC delete_record(const Record &record);
   RC delete_record(const RID &rid);
+  RC update_record(Record &record, const Value &value, const FieldMeta *field);
   RC get_record(const RID &rid, Record &record);
 
   RC recover_insert_record(Record &record);
@@ -91,6 +93,8 @@ public:
 
   RecordFileHandler *record_handler() const { return record_handler_; }
 
+  vector<Index *> &indexes() { return indexes_; }
+
   /**
    * @brief 可以在页面锁保护的情况下访问记录
    * @details 当前是在事务中访问记录，为了提供一个“原子性”的访问模式
@@ -103,6 +107,7 @@ public:
 public:
   int32_t     table_id() const { return table_meta_.table_id(); }
   const char *name() const;
+  Field      *find_field(const char *field_name) const;
 
   Db *db() const { return db_; }
 

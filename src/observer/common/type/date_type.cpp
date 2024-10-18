@@ -6,22 +6,21 @@
 #include "common/log/log.h"
 #include "common/value.h"
 #include "deps/common/lang/date.h"
+#include "common/lang/comparator.h"
+#include "common/lang/comparator.h"
+#include <iomanip>
 
 int DateType::compare(const Value &left, const Value &right) const {
     ASSERT(left.attr_type() == AttrType::DATES, "left type is not date.");
     ASSERT(right.attr_type() == AttrType::DATES, "right type is not date.");
-    if (left.get_int() < right.get_int()) {
-        return -1;
-    } else if (left.get_int() == right.get_int()) {
-        return 0;
-    } else {
-        return 1;
-    }
+    int left_date = left.get_date();
+    int right_date = right.get_date();
+    return common::compare_int((void *)&left_date, (void *)&right_date);
 }
 
 RC DateType::set_value_from_str(Value &val, const string &data) const {
   int32_t date = INT32_MAX;
-  RC rc = common::date_from_string(data, date);
+  RC rc = common::date_from_string(data, &date);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -32,5 +31,7 @@ RC DateType::set_value_from_str(Value &val, const string &data) const {
 
 RC DateType::to_string(const Value &val, string &result) const {
   ASSERT(val.attr_type() == AttrType::DATES, "val type is not date.");
-  return common::date_to_string(val.get_date(), result);
+  int date = val.get_date();
+  RC rc = common::date_to_string(date, result);
+  return rc;
 }
