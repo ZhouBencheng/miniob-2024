@@ -26,6 +26,12 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
   val.set_string(data.c_str());
   return RC::SUCCESS;
 }
+int CharType::like(const Value &left, const Value &right) const {
+  ASSERT(left.attr_type() == AttrType::CHARS && right.attr_type() == AttrType::CHARS, "invalid type");
+  LOG_DEBUG("like char. left=, right=");
+  return common::like_string(
+      left.value_.pointer_value_, left.length_, right.value_.pointer_value_, right.length_);
+}
 
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
 {

@@ -32,6 +32,24 @@ struct Equal
   static inline __m256i operation(const __m256i &left, const __m256i &right) { return _mm256_cmpeq_epi32(left, right); }
 #endif
 };
+struct LikeEqual
+{
+  template <class T>
+  static inline bool operation(const T &left, const T &right)
+  {
+    // TODO: left like right
+    
+    return 0;
+  }
+#if defined(USE_SIMD)
+  static inline __m256 operation(const __m256 &left, const __m256 &right)
+  {
+    return _mm256_cmp_ps(left, right, _CMP_EQ_OS);
+  }
+
+  static inline __m256i operation(const __m256i &left, const __m256i &right) { return _mm256_cmpeq_epi32(left, right); }
+#endif
+};
 struct NotEqual
 {
   template <class T>
@@ -369,6 +387,9 @@ void compare_result(T *left, T *right, int n, std::vector<uint8_t> &result, Comp
       compare_operation<T, LEFT_CONSTANT, RIGHT_CONSTANT, LessThan>(left, right, n, result);
       break;
     }
+    case CompOp::LIKE_COMP: {
+      compare_operation<T, LEFT_CONSTANT, RIGHT_CONSTANT, LikeEqual>(left, right, n, result);
+    } break;
     default: break;
   }
 }

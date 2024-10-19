@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "common/lang/date.h"
+#include "common/type/attr_type.h"
 
 Value::Value(int val) { set_int(val); }
 
@@ -257,7 +258,13 @@ string Value::to_string() const
 }
 
 int Value::compare(const Value &other) const { return DataType::type_instance(this->attr_type_)->compare(*this, other); }
-
+int Value::like(const Value &other) const {
+  LOG_DEBUG("like operator is called. this=%s, other=%s", this -> value_.pointer_value_, other.value_.pointer_value_);
+  // ASSERT(this->attr_type_ == other.attr_type_, "attr type is not equal");
+  LOG_DEBUG("this attr type is %d %d", this -> attr_type(), other.attr_type());
+  
+  return DataType::type_instance(this->attr_type_)->like(*this, other);
+}
 int Value::get_int() const
 {
   switch (attr_type_) {

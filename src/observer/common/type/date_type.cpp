@@ -4,6 +4,7 @@
 
 #include "date_type.h"
 #include "common/log/log.h"
+#include "common/type/data_type.h"
 #include "common/value.h"
 #include "deps/common/lang/date.h"
 #include "common/lang/comparator.h"

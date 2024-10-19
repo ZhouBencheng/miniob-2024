@@ -13,8 +13,10 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/expr/expression.h"
+#include "common/log/log.h"
 #include "sql/expr/tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
+#include "sql/parser/parse_defs.h"
 
 using namespace std;
 
@@ -141,6 +143,10 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     } break;
     case GREAT_THAN: {
       result = (cmp_result > 0);
+    } break;
+    case LIKE_COMP: {
+      LOG_DEBUG("LIKE_COMP");
+      result = left.like(right);
     } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
