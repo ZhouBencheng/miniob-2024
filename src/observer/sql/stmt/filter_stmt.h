@@ -23,25 +23,26 @@ See the Mulan PSL v2 for more details. */
 class Db;
 class Table;
 class FieldMeta;
+class ExpressionBinder;
 
 // 过滤条件中操作对象类型
-struct FilterObj
+struct FilterObj // 将过滤条件的操作对象理解为Expression表达式的封装
 {
-  bool  is_attr;
-  Field field;
-  Value value;
+  // bool  is_attr;
+  // Field field;
+  // Value value;
 
-  void init_attr(const Field &field)
-  {
-    is_attr     = true;
-    this->field = field;
-  }
+  // void init_attr(const Field &field)
+  // {
+  //   is_attr     = true;
+  //   this->field = field;
+  // }
 
-  void init_value(const Value &value)
-  {
-    is_attr     = false;
-    this->value = value;
-  }
+  // void init_value(const Value &value)
+  // {
+  //   is_attr     = false;
+  //   this->value = value;
+  // }
 };
 
 // 一个完整的过滤单元，包含左右操作对象和运算符
@@ -55,16 +56,21 @@ public:
 
   CompOp comp() const { return comp_; }
 
-  void set_left(const FilterObj &obj) { left_ = obj; }
-  void set_right(const FilterObj &obj) { right_ = obj; }
+  // void set_left(const FilterObj &obj) { left_ = obj; }
+  // void set_right(const FilterObj &obj) { right_ = obj; }
 
-  const FilterObj &left() const { return left_; }
-  const FilterObj &right() const { return right_; }
+  void set_left(std::unique_ptr<Expression> left) { left_ = std::move(left); }
+  void set_right(std::unique_ptr<Expression> right) { right_ = std::move(right); }
 
-private:
+  // const FilterObj &left() const { return left_; }
+  // const FilterObj &right() const { return right_; }
+
+public:
   CompOp    comp_ = NO_OP;
-  FilterObj left_;
-  FilterObj right_;
+  // FilterObj left_;
+  // FilterObj right_;
+  std::unique_ptr<Expression> left_;
+  std::unique_ptr<Expression> right_;
 };
 
 /**
@@ -78,14 +84,15 @@ public:
   virtual ~FilterStmt();
 
 public:
-  const std::vector<FilterUnit *> &filter_units() const { return filter_units_; }
+  // 当我们在logical_plan_generator.cpp中调用filter_units()方法获取数组时，意味着数组中FilterUnit中指向Expression的指针都将被夺舍
+  std::vector<FilterUnit *> &filter_units() { return filter_units_; }
 
 public:
   static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt);
+      ExpressionBinder &expression_binder, ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt);
 
   static RC create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      const ConditionSqlNode &condition, FilterUnit *&filter_unit);
+      ExpressionBinder &expression_binder, ConditionSqlNode &condition, FilterUnit *&filter_unit);
 
 private:
   std::vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系

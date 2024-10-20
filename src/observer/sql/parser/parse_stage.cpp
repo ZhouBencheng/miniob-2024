@@ -47,6 +47,11 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
     LOG_WARN("got multi sql commands but only 1 will be handled");
   }
 
+  // 输出解析出来的sql节点名称
+  for (auto &node : parsed_sql_result.sql_nodes()) {
+    LOG_WARN("sql node: %s", node->SCF_to_string(node->get_flag()));
+  }
+
   std::unique_ptr<ParsedSqlNode> sql_node = std::move(parsed_sql_result.sql_nodes().front());
   if (sql_node->flag == SCF_ERROR) {
     // set error information to event

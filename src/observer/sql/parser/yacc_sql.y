@@ -22,6 +22,7 @@ string token_name(const char *sql_string, YYLTYPE *llocp)
 
 int yyerror(YYLTYPE *llocp, const char *sql_string, ParsedSqlResult *sql_result, yyscan_t scanner, const char *msg)
 {
+  fprintf(stderr, "Error: %s at line %d, column %d\n", msg, llocp->first_line, llocp->first_column);
   std::unique_ptr<ParsedSqlNode> error_sql_node = std::make_unique<ParsedSqlNode>(SCF_ERROR);
   error_sql_node->error.error_msg = msg;
   error_sql_node->error.line = llocp->first_line;
@@ -187,9 +188,11 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
+%precedence LOWEST
 %left '+' '-'
 %left '*' '/'
-%nonassoc UMINUS /* %nonasoc表示运算符的非结合特性，改行代码定义一个一元符号运算符UMINUS */
+%nonassoc UMINUS /* %nonasoc表示运算符的非结合特性，该行代码定义一个一元符号运算符UMINUS */
+
 %%
 
 commands: command_wrapper opt_semicolon  //commands or sqls. parser starts here.
@@ -510,6 +513,15 @@ expression_list:
     }
     ;
 expression:
+    // expression value %prec LOWEST {
+    //   if ($2->attr_type() == AttrType::INTS && $2->get_int() < 0) {
+    //     $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, new ValueExpr($2->int_value()), sql_string, &@$);
+    //   } else if ($2->attr_type() == AttrType::FLOATS && $2->get_float() < 0) {
+    //     $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, new ValueExpr($2->float_value()), sql_string, &@$);
+    //   } else {
+    //     yyerror(&@$, sql_string, sql_result, scanner, "Invalid expression");
+    //   }
+    // }
     expression '+' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
     }
@@ -517,7 +529,7 @@ expression:
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::SUB, $1, $3, sql_string, &@$);
     }
     | expression '*' expression {
-      $$ = create_arithmetic_expression(ArithmeticExpr::Type::MUL, $1, $3, sql_string, &@$);
+      $$ = create_arithmetic_expression(ArithmeticExpr::Type::MUL, $1, $3, sql_string, &@$);;
     }
     | expression '/' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
@@ -635,7 +647,8 @@ where:
       $$ = nullptr;
     }
     | WHERE condition_list {
-      $$ = $2;  
+      $$ = new std::vector<ConditionSqlNode>;
+      $$->swap(*$2);  
     }
     ;
 condition_list:
@@ -645,64 +658,72 @@ condition_list:
     }
     | condition {
       $$ = new std::vector<ConditionSqlNode>;
-      $$->emplace_back(*$1);
+      $$->emplace_back(std::move(*$1));
       delete $1;
     }
     | condition AND condition_list {
       $$ = $3;
-      $$->emplace_back(*$1);
+      $$->emplace_back(std::move(*$1));
       delete $1;
     }
     ;
 condition:
-    rel_attr comp_op value
+    expression comp_op expression
     {
       $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
+      $$-> left_expression.reset($1);
+      $$->right_expression.reset($3);
       $$->comp = $2;
-
-      delete $1;
-      delete $3;
+      LOG_DEBUG("condition: %s | %s", $1->name(),  $3->name());
     }
-    | value comp_op value 
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
+    // rel_attr comp_op value
+    // {
+    //   $$ = new ConditionSqlNode;
+    //   $$->left_is_attr = 1;
+    //   $$->left_attr = *$1;
+    //   $$->right_is_attr = 0;
+    //   $$->right_value = *$3;
+    //   $$->comp = $2;
 
-      delete $1;
-      delete $3;
-    }
-    | rel_attr comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
+    //   delete $1;
+    //   delete $3;
+    // }
+    // | value comp_op value 
+    // {
+    //   $$ = new ConditionSqlNode;
+    //   $$->left_is_attr = 0;
+    //   $$->left_value = *$1;
+    //   $$->right_is_attr = 0;
+    //   $$->right_value = *$3;
+    //   $$->comp = $2;
 
-      delete $1;
-      delete $3;
-    }
-    | value comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
+    //   delete $1;
+    //   delete $3;
+    // }
+    // | rel_attr comp_op rel_attr
+    // {
+    //   $$ = new ConditionSqlNode;
+    //   $$->left_is_attr = 1;
+    //   $$->left_attr = *$1;
+    //   $$->right_is_attr = 1;
+    //   $$->right_attr = *$3;
+    //   $$->comp = $2;
 
-      delete $1;
-      delete $3;
-    }
+    //   delete $1;
+    //   delete $3;
+    // }
+    // | value comp_op rel_attr
+    // {
+    //   $$ = new ConditionSqlNode;
+    //   $$->left_is_attr = 0;
+    //   $$->left_value = *$1;
+    //   $$->right_is_attr = 1;
+    //   $$->right_attr = *$3;
+    //   $$->comp = $2;
+
+    //   delete $1;
+    //   delete $3;
+    // }
     ;
 
 comp_op:

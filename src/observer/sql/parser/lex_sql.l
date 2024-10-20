@@ -77,9 +77,6 @@ QUOTE            [\'\"]
 {WHITE_SAPCE}                                        // ignore whitespace
 \n                                                   ;
 
-[\-]?{DIGIT}+                           yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER);
-[\-]?{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT);
-
 ";"                                     RETURN_TOKEN(SEMICOLON);
 {DOT}                                   RETURN_TOKEN(DOT);
 EXIT                                    RETURN_TOKEN(EXIT);
@@ -125,7 +122,8 @@ GROUP                                   RETURN_TOKEN(GROUP);
 BY                                      RETURN_TOKEN(BY);
 STORAGE                                 RETURN_TOKEN(STORAGE);
 FORMAT                                  RETURN_TOKEN(FORMAT);
-{ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
+{ID}                                    yylval->string=strdup(yytext); LOG_DEBUG("Match name [%s]", yytext); RETURN_TOKEN(ID);
+
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);
 
@@ -141,7 +139,11 @@ FORMAT                                  RETURN_TOKEN(FORMAT);
 "+" |
 "-" |
 "*" |
-"/"                                     { return yytext[0]; }
+"/"                                     { LOG_DEBUG("Match oper %c", yytext[0]); return yytext[0]; }
+
+[\-]?{DIGIT}+                           yylval->number=atoi(yytext); LOG_DEBUG("Match number %d", yylval->number); RETURN_TOKEN(NUMBER);
+[\-]?{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); LOG_DEBUG("Match float %f", yylval->floats); RETURN_TOKEN(FLOAT);
+
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 

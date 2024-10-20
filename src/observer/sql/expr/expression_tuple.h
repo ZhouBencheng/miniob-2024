@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 #include "common/rc.h"
 
-template <typename ExprPointerType>
+template <typename ExprPointerType> // 在project物理算子中，这里的ExprPointerType是std::unique_ptr<Expression>
 class ExpressionTuple : public Tuple
 {
 public:

@@ -68,7 +68,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
     RC rc = expression_binder.bind_expression(expression, bound_expressions);
     if (OB_FAIL(rc)) {
-      LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+      LOG_INFO("bind select clause expression failed. rc=%s", strrc(rc));
       return rc;
     }
   }
@@ -77,7 +77,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   for (unique_ptr<Expression> &expression : select_sql.group_by) {
     RC rc = expression_binder.bind_expression(expression, group_by_expressions);
     if (OB_FAIL(rc)) {
-      LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+      LOG_INFO("bind group by clause expression failed. rc=%s", strrc(rc));
       return rc;
     }
   }
@@ -93,6 +93,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   RC          rc          = FilterStmt::create(db,
       default_table,
       &table_map,
+      expression_binder,
       select_sql.conditions.data(),
       static_cast<int>(select_sql.conditions.size()),
       filter_stmt);

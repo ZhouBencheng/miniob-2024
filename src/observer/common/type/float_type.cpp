@@ -43,11 +43,11 @@ RC FloatType::multiply(const Value &left, const Value &right, Value &result) con
 
 RC FloatType::divide(const Value &left, const Value &right, Value &result) const
 {
-  if (right.get_float() > -EPSILON && right.get_float() < EPSILON) {
+  if ((right.get_float() > -EPSILON && right.get_float() < EPSILON) || right.get_float() == 0) {
     // NOTE:
     // 设置为浮点数最大值是不正确的。通常的做法是设置为NULL，但是当前的miniob没有NULL概念，所以这里设置为浮点数最大值。
-    result.set_float(numeric_limits<float>::max());
-  } else {
+    result.set_type(AttrType::NULLS);
+  } else if(right.get_float() != 0){
     result.set_float(left.get_float() / right.get_float());
   }
   return RC::SUCCESS;
@@ -57,6 +57,33 @@ RC FloatType::negative(const Value &val, Value &result) const
 {
   result.set_float(-val.get_float());
   return RC::SUCCESS;
+}
+
+RC FloatType::cast_to(const Value &val, AttrType type, Value &result) const
+{
+  switch (type) {
+    case AttrType::INTS:
+      result.set_int(static_cast<int>(val.get_float()));
+      break;
+    case AttrType::FLOATS:
+      result.set_float(val.get_float());
+      break;
+    default:
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+  }
+  return RC::SUCCESS;
+}
+
+int FloatType::cast_cost(AttrType type)
+{
+  switch (type) {
+    case AttrType::INTS:
+      return 2;
+    case AttrType::FLOATS:
+      return 0;
+    default:
+      return INT32_MAX;
+  }
 }
 
 RC FloatType::set_value_from_str(Value &val, const string &data) const

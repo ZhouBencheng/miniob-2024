@@ -16,12 +16,13 @@ See the Mulan PSL v2 for more details. */
 #include <common/log/log.h>
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include <sql/parser/expression_binder.h>
 
 UpdateStmt::UpdateStmt(Table *table, Field *field, const Value *values, int value_amount, FilterStmt* filter)
     : table_(table), field_(field), values_(values),  filter_(filter), value_amount_(value_amount)
 {}
 
-RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
+RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 {
   // 检查表名称和属性名称是否为非空
   const char *table_name = update.relation_name.c_str();
@@ -48,12 +49,18 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table*>(std::string(table_name), table));
 
+  // 构造ExpressionBinder对象
+  BinderContext binder_context;
+  binder_context.add_table(table);
+  ExpressionBinder expression_binder(binder_context);
+
   // FilterStmt::create函数：当condition中不存在过滤条件时，依然将filter_stmt指针构造为一个空的FilterStmt对象
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(
     db,                                         // 数据库指针
     table,                                      // 默认表指针
     &table_map,                                 // 映射表指针
+    expression_binder,                          // 表达式绑定器
     update.conditions.data(),                   // 过滤条件数组指针
     static_cast<int>(update.conditions.size()), // 过滤条件个数
     filter_stmt                                 // (out)输出的FilterStmt指针
