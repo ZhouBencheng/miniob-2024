@@ -76,6 +76,8 @@ QUOTE            [\'\"]
 
 {WHITE_SAPCE}                                        // ignore whitespace
 \n                                                   ;
+{DIGIT}+                           yylval->number=atoi(yytext); LOG_DEBUG("Match number %d", yylval->number); RETURN_TOKEN(NUMBER);
+{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); LOG_DEBUG("Match float %f", yylval->floats); RETURN_TOKEN(FLOAT);
 
 ";"                                     RETURN_TOKEN(SEMICOLON);
 {DOT}                                   RETURN_TOKEN(DOT);
@@ -140,9 +142,6 @@ FORMAT                                  RETURN_TOKEN(FORMAT);
 "-" |
 "*" |
 "/"                                     { LOG_DEBUG("Match oper %c", yytext[0]); return yytext[0]; }
-
-[\-]?{DIGIT}+                           yylval->number=atoi(yytext); LOG_DEBUG("Match number %d", yylval->number); RETURN_TOKEN(NUMBER);
-[\-]?{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); LOG_DEBUG("Match float %f", yylval->floats); RETURN_TOKEN(FLOAT);
 
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);

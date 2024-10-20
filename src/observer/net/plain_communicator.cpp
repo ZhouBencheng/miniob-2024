@@ -283,14 +283,7 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
     bool is_divided_by_zero = false;
     for (int i = 0; i < cell_num; i++) {
       if (i != 0) {
-        // const char *delim = " | ";
         newline += " | ";
-        // rc = writer_->writen(delim, strlen(delim));
-        // if (OB_FAIL(rc)) {
-        //   LOG_WARN("failed to send data to client. err=%s", strerror(errno));
-        //   sql_result->close();
-        //   return rc;
-        // }
       }
 
       Value value;
@@ -307,13 +300,6 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
       }
 
       newline += value.to_string();
-
-      // rc = writer_->writen(cell_str.data(), cell_str.size());
-      // if (OB_FAIL(rc)) {
-      //   LOG_WARN("failed to send data to client. err=%s", strerror(errno));
-      //   sql_result->close();
-      //   return rc;
-      // }
     }
     if (!is_divided_by_zero) {
       newline += "\n";
