@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include <string.h>
 
 #include "common/lang/algorithm.h"
+#include "log/log.h"
 
 namespace common {
 
@@ -65,5 +66,56 @@ int compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_len
   }
   return 0;
 }
+
+// like_string 实现
+int like_string(char *arg1, int arg1_max_length, char *arg2, int arg2_max_length) {
+    int i = 0, j = 0;
+
+    // 遍历 arg2 (模式字符串)
+    while (i < arg1_max_length && j < arg2_max_length) {
+        // 匹配 '%'
+        if (arg2[j] == '%') {
+            j++;  // 跳过 '%'
+            if (j == arg2_max_length) {
+                // '%' 是最后一个字符，匹配剩余所有字符
+                return 1;
+            }
+
+            // 递归检查后续字符是否匹配
+            while (i < arg1_max_length) {
+                if (like_string(&arg1[i], arg1_max_length - i, &arg2[j], arg2_max_length - j)) {
+                    return 1;
+                }
+                i++;
+            }
+
+            // 如果都不匹配，返回 0
+            return 0;
+        }
+        // 匹配 '_'
+        else if (arg2[j] == '_') {
+            i++;
+            j++;
+        }
+        // 普通字符匹配
+        else {
+            if (arg1[i] != arg2[j]) {
+                return 0;
+            }
+            i++;
+            j++;
+        }
+    }
+
+    // 检查模式字符串是否匹配完毕
+    while (j < arg2_max_length && arg2[j] == '%') {
+        j++;  // 可以跳过尾部的 '%'
+    }
+
+    // 如果模式字符串匹配完且主字符串也匹配完，返回 1
+    return (i == arg1_max_length && j == arg2_max_length);
+}
+
+
 
 }  // namespace common
