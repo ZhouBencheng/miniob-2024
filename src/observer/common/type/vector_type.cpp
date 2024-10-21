@@ -5,10 +5,30 @@
 #include "common/lang/vector_utils.h"
 #include "common/lang/comparator.h"
 
-int VectorType::compare(const Value &left, const Value &right) const
+int VectorType::compare(const Value &left_prev, const Value &right_prev) const
 {
-    ASSERT(left.attr_type()  == AttrType::VECTORS, "left type is not vector");
-    ASSERT(right.attr_type() == AttrType::VECTORS, "right type is not vector");
+    // 检查左右类型是否为向量并转换
+    Value left;
+    Value right;
+    if (left_prev.attr_type() != AttrType::VECTORS) {
+        RC rc = Value::cast_to(left_prev, AttrType::VECTORS, left);
+        if (OB_FAIL(rc)) {
+            LOG_WARN("cast left value to vector type failed. %s", strrc(rc));
+            return INT32_MAX;
+        }
+    } else {
+        left = left_prev;
+    }
+    if (right_prev.attr_type() != AttrType::VECTORS) {
+        RC rc = Value::cast_to(right_prev, AttrType::VECTORS, right);
+        if (OB_FAIL(rc)) {
+            LOG_WARN("cast right value to vector type failed. %s", strrc(rc));
+            return INT32_MAX;
+        }
+    } else {
+        right = right_prev;
+    }
+
     int left_len  = (left.length()  - 1) / 4;
     int right_len = (right.length() - 1) / 4;
     bool left_is_int  = left.is_int_vector();
@@ -57,8 +77,29 @@ int VectorType::compare(const Value &left, const Value &right) const
     return common::compare_int((void*)&left_len, (void*)&right_len);
 }
 
-RC VectorType::add(const Value &left, const Value &right, Value &result) const
+RC VectorType::add(const Value &left_prev, const Value &right_prev, Value &result) const
 {
+    // 检查左右类型是否为向量并转换
+    Value left;
+    Value right;
+    if (left_prev.attr_type() != AttrType::VECTORS) {
+        RC rc = Value::cast_to(left_prev, AttrType::VECTORS, left);
+        if (OB_FAIL(rc)) {
+            LOG_WARN("cast left value to vector type failed. %s", strrc(rc));
+            return rc;
+        }
+    } else {
+        left = left_prev;
+    }
+    if (right_prev.attr_type() != AttrType::VECTORS) {
+        RC rc = Value::cast_to(right_prev, AttrType::VECTORS, right);
+        if (OB_FAIL(rc)) {
+            LOG_WARN("cast right value to vector type failed. %s", strrc(rc));
+            return rc;
+        }
+    } else {
+        right = right_prev;
+    }
     bool left_is_int  = left.is_int_vector();
     bool right_is_int = right.is_int_vector();
     int left_len  = (left.length()  - 1) / 4;
@@ -106,8 +147,30 @@ RC VectorType::add(const Value &left, const Value &right, Value &result) const
     return RC::SUCCESS;
 }
 
-RC VectorType::subtract(const Value &left, const Value &right, Value &result) const
+RC VectorType::subtract(const Value &left_prev, const Value &right_prev, Value &result) const
 {
+    // 检查左右类型是否为向量并转换
+    Value left;
+    Value right;
+    if (left_prev.attr_type() != AttrType::VECTORS) {
+        RC rc = Value::cast_to(left_prev, AttrType::VECTORS, left);
+        if (OB_FAIL(rc)) {
+            LOG_WARN("cast left value to vector type failed. %s", strrc(rc));
+            return rc;
+        }
+    } else {
+        left = left_prev;
+    }
+    if (right_prev.attr_type() != AttrType::VECTORS) {
+        RC rc = Value::cast_to(right_prev, AttrType::VECTORS, right);
+        if (OB_FAIL(rc)) {
+            LOG_WARN("cast right value to vector type failed. %s", strrc(rc));
+            return rc;
+        }
+    } else {
+        right = right_prev;
+    }
+
     bool left_is_int  = left.is_int_vector();
     bool right_is_int = right.is_int_vector();
     int left_len  = (left.length()  - 1) / 4;
@@ -155,8 +218,30 @@ RC VectorType::subtract(const Value &left, const Value &right, Value &result) co
     return RC::SUCCESS;
 }
 
-RC VectorType::multiply(const Value &left, const Value &right, Value &result) const
+RC VectorType::multiply(const Value &left_prev, const Value &right_prev, Value &result) const
 {
+    // 检查左右类型是否为向量并转换
+    Value left;
+    Value right;
+    if (left_prev.attr_type() != AttrType::VECTORS) {
+        RC rc = Value::cast_to(left_prev, AttrType::VECTORS, left);
+        if (OB_FAIL(rc)) {
+            LOG_WARN("cast left value to vector type failed. %s", strrc(rc));
+            return rc;
+        }
+    } else {
+        left = left_prev;
+    }
+    if (right_prev.attr_type() != AttrType::VECTORS) {
+        RC rc = Value::cast_to(right_prev, AttrType::VECTORS, right);
+        if (OB_FAIL(rc)) {
+            LOG_WARN("cast right value to vector type failed. %s", strrc(rc));
+            return rc;
+        }
+    } else {
+        right = right_prev;
+    }
+
     bool left_is_int  = left.is_int_vector();
     bool right_is_int = right.is_int_vector();
     int left_len  = (left.length()  - 1) / 4;
