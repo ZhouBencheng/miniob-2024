@@ -350,8 +350,10 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
     if (copy_len > data_len) {
       copy_len = data_len + 1;
     }
-  } else if (field->type() == AttrType::VECTORS) { //因为在Value中length_存储字节长度，而表元数据中返回的copy_len是向量元素个数，因此需要乘以4
-    copy_len = copy_len < data_len ? copy_len : data_len;
+  }
+  if (field->type() == AttrType::VECTORS && copy_len != data_len) {
+    LOG_WARN("field_len and data_len mismatch. field_len=%d, data_len=%d", copy_len, data_len);
+    return RC::INVALID_ARGUMENT;
   } 
   memcpy(record_data + field->offset(), value.data(), copy_len);
   return RC::SUCCESS;
