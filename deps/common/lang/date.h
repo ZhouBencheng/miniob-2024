@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "common/lang/string.h"
 #include "src/observer/common/rc.h"
 #include <iomanip>
 

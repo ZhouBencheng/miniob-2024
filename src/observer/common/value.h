@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/memory.h"
 #include "common/type/attr_type.h"
 #include "common/type/data_type.h"
+#include "common/type/vector_type.h"
 
 /**
  * @brief 属性的值
@@ -35,6 +36,8 @@ public:
   friend class BooleanType;
   friend class CharType;
   friend class DateType;
+  friend class VectorType;
+  friend class NullType;
 
   Value() = default;
 
@@ -105,22 +108,26 @@ public:
    * 获取对应的值
    * 如果当前的类型与期望获取的类型不符，就会执行转换操作
    */
-  int    get_int() const;
-  float  get_float() const;
-  string get_string() const;
-  bool   get_boolean() const;
-  int    get_date() const;
+  int         get_int() const;
+  float       get_float() const;
+  string      get_string() const;
+  bool        get_boolean() const;
+  int         get_date() const;
+  RC          get_vector_type(VectorType::Type *type) const;
+  const char *get_vector() const;
 
 private:
   void set_int(int val);
   void set_float(float val);
   void set_string(const char *s, int len = 0);
   void set_string_from_other(const Value &other);
-  void set_date(int val); /// 重载设置日期的两种方法，分别接受整型和字符串类型
-  void set_date(const char *s, int len = 0);
+  void set_date(int val);
+  void set_vector(const char *data, int len, VectorType::Type type); 
+  //! 注意不同于其他类型，向量类型Value的length_记录向量长度而不是字节长度，字节长度为向量宽度的4倍，此处len等同于向量宽度
 
 private:
   AttrType attr_type_ = AttrType::UNDEFINED;
+  VectorType::Type vector_type_ = VectorType::Type::INT;
   int      length_    = 0;
 
   union Val

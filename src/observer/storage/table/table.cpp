@@ -350,7 +350,9 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
     if (copy_len > data_len) {
       copy_len = data_len + 1;
     }
-  }
+  } else if (field->type() == AttrType::VECTORS) { // VECTORS类型的字段，假设存储的整数和浮点数都是4Byte，字节长度是Value.length的4倍
+    copy_len = copy_len < data_len ? copy_len : data_len;
+  } 
   memcpy(record_data + field->offset(), value.data(), copy_len);
   return RC::SUCCESS;
 }

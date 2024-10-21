@@ -14,8 +14,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/memory.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
-#include "common/rc.h"
-#include "common/type/attr_type.h"
+#include "src/observer/common/rc.h"
+#include "src/observer/common/type/attr_type.h"
 
 class Value;
 

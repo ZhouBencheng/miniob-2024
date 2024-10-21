@@ -127,8 +127,11 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+    case AttrType::VECTORS: {
+      set_vector(data, length, vector_type_);
+    } break;
     default: {
-      LOG_WARN("unknown data type: %d", attr_type_);
+      LOG_WARN("unknown data type in Value::set_data: %d", attr_type_);
     } break;
   }
 }
@@ -185,19 +188,20 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
 }
 
-void Value::set_date(const char *s, int len) // set_date设置字符串的版本
+void Value::set_vector(const char *data, int len, VectorType::Type type)
 {
   reset();
-  attr_type_ = AttrType::DATES;
-  ASSERT(s != nullptr, "date string is null");
-  int32_t date = INT32_MAX;
-  RC rc =common::date_from_string(s, &date);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to convert string to date. s=%s", s);
-    return;
+  attr_type_ = AttrType::VECTORS;
+  if (data == nullptr) {
+    value_.pointer_value_ = nullptr;
+    length_               = 0;
+  } else {
+    own_data_ = true;
+    value_.pointer_value_ = new char[len];
+    memcpy(value_.pointer_value_, data, len);
+    length_               = len;
+    vector_type_          = type;
   }
-  value_.int_value_ = date;
-  length_ = sizeof(date);
 }
 
 void Value::set_value(const Value &value)
@@ -218,6 +222,9 @@ void Value::set_value(const Value &value)
     case AttrType::DATES: {
       set_date(value.get_date());
     } break;
+    case AttrType::VECTORS: {
+      set_vector(value.get_vector(), value.length(), value.vector_type_);
+    } break;
     default: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -226,7 +233,7 @@ void Value::set_value(const Value &value)
 
 void Value::set_string_from_other(const Value &other)
 {
-  ASSERT(attr_type_ == AttrType::CHARS, "attr type is not CHARS");
+  ASSERT(attr_type_ == AttrType::CHARS || attr_type_ == AttrType::VECTORS, "attr type is not CHARS or VECTORS");
   if (own_data_ && other.value_.pointer_value_ != nullptr && length_ != 0) {
     this->value_.pointer_value_ = new char[this->length_ + 1];
     memcpy(this->value_.pointer_value_, other.value_.pointer_value_, this->length_);
@@ -237,7 +244,7 @@ void Value::set_string_from_other(const Value &other)
 const char *Value::data() const // 获取底层数据的首字节指针，不论是否为CHARS
 {
   switch (attr_type_) {
-    case AttrType::CHARS: {
+    case AttrType::CHARS: case AttrType::VECTORS: {
       return value_.pointer_value_;
     } break;
     default: {
@@ -390,4 +397,21 @@ int Value::get_date() const
       return 0;
     }
   }
+}
+
+RC Value::get_vector_type(VectorType::Type *type) const 
+{
+    if (attr_type_ != AttrType::VECTORS) {
+      type = nullptr;
+      return RC::INVALID_ARGUMENT;
+    }
+    *type = vector_type_;
+    return RC::SUCCESS;
+}
+
+const char *Value::get_vector() const {
+  if (attr_type_ != AttrType::VECTORS) {
+    return nullptr;
+  }
+  return value_.pointer_value_;
 }

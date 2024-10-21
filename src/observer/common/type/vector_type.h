@@ -10,7 +10,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include "common/type/data_type.h"
+#include "src/observer/common/type/data_type.h"
 
 /**
  * @brief 向量类型
@@ -19,14 +19,20 @@ See the Mulan PSL v2 for more details. */
 class VectorType : public DataType
 {
 public:
+  enum class Type { // 表示向量存储的数据类型
+    UNKNOWN,
+    INT,
+    FLOAT
+  };
+
   VectorType() : DataType(AttrType::VECTORS) {}
   virtual ~VectorType() {}
 
-  int compare(const Value &left, const Value &right) const override { return INT32_MAX; }
+  int compare(const Value &left, const Value &right) const override;
 
-  RC add(const Value &left, const Value &right, Value &result) const override { return RC::UNIMPLEMENTED; }
-  RC subtract(const Value &left, const Value &right, Value &result) const override { return RC::UNIMPLEMENTED; }
-  RC multiply(const Value &left, const Value &right, Value &result) const override { return RC::UNIMPLEMENTED; }
+  RC add(const Value &left, const Value &right, Value &result) const override;
+  RC subtract(const Value &left, const Value &right, Value &result) const override;
+  RC multiply(const Value &left, const Value &right, Value &result) const override;
 
-  RC to_string(const Value &val, string &result) const override { return RC::UNIMPLEMENTED; }
+  RC to_string(const Value &val, string &result) const override;
 };
