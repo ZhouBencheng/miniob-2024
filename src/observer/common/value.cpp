@@ -360,6 +360,15 @@ bool Value::get_boolean() const
     case AttrType::BOOLEANS: {
       return value_.bool_value_;
     } break;
+    case AttrType::VECTORS: {
+      return value_.pointer_value_ != nullptr;
+    } break;
+    case AttrType::DATES: {
+      int year  = value_.int_value_ / 10000;
+      int month = value_.int_value_ % 10000 / 100;
+      int day   = value_.int_value_ % 100;
+      return common::is_valid_date(year, month, day);
+    } break;
     default: {
       LOG_WARN("unknown data type in get_boolean. type=%d", attr_type_);
       return false;

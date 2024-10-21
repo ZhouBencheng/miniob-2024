@@ -80,6 +80,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         MAX
         MIN
         AVG
+        L2_DISTANCE
+        COSINE_DISTANCE
+        INNER_PRODUCT
         DESC
         SHOW
         SYNC
@@ -575,6 +578,9 @@ expression:
     | aggregation_func {
       $$ = $1;
     }
+    | vector_func {
+      $$ = $1;
+    }
 
 aggregation_func:
     aggregation_name LBRACE expression_list RBRACE {
@@ -593,6 +599,17 @@ aggregation_name:
     | MAX { $$ = (char *)"MAX"; }
     | MIN { $$ = (char *)"MIN"; }
     | AVG { $$ = (char *)"AVG"; }
+    ;
+
+vector_func:
+    vector_func_name LBRACE value COMMA value RBRACE {
+
+    }
+
+vector_func_name:
+    L2_DISTANCE { $$ = (char *)"L2_DISTANCE"; }
+    | COSINE_DISTANCE { $$ = (char *)"COSINE_DISTANCE"; }
+    | INNER_PRODUCT { $$ = (char *)"INNER_PRODUCT"; }
     ;
 
 rel_attr:
