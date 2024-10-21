@@ -125,6 +125,11 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   RC  rc         = RC::SUCCESS;
   int cmp_result = left.compare(right);
   result         = false;
+  // null值和任何值比较都是返回false
+  if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS) {
+    result = false;
+    return rc;
+  }
   switch (comp_) {
     case EQUAL_TO: {
       result = (0 == cmp_result);
@@ -189,12 +194,12 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 
   RC rc = left_->get_value(tuple, left_value);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+    LOG_WARN("failed to get value of left expression in comparison. rc=%s", strrc(rc));
     return rc;
   }
   rc = right_->get_value(tuple, right_value);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+    LOG_WARN("failed to get value of right expression in comparison. rc=%s", strrc(rc));
     return rc;
   }
 
@@ -215,12 +220,12 @@ RC ComparisonExpr::eval(Chunk &chunk, std::vector<uint8_t> &select)
 
   rc = left_->get_column(chunk, left_column);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+    LOG_WARN("failed to get value of left expression in comparison. rc=%s", strrc(rc));
     return rc;
   }
   rc = right_->get_column(chunk, right_column);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+    LOG_WARN("failed to get value of right expression in comparison. rc=%s", strrc(rc));
     return rc;
   }
   if (left_column.attr_type() != right_column.attr_type()) {
@@ -331,7 +336,10 @@ RC ArithmeticExpr::calc_value(const Value &left_value, const Value &right_value,
 
   const AttrType target_type = value_type();
   value.set_type(target_type);
-
+  if (left_value.attr_type() == AttrType::NULLS || right_value.attr_type() == AttrType::NULLS) {
+    value.set_type(AttrType::NULLS);
+    return rc;
+  }
   switch (arithmetic_type_) {
     case Type::ADD: {
       Value::add(left_value, right_value, value);
@@ -438,13 +446,15 @@ RC ArithmeticExpr::get_value(const Tuple &tuple, Value &value) const
 
   rc = left_->get_value(tuple, left_value);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+    LOG_WARN("failed to get value of left expression in arithmetic. rc=%s", strrc(rc));
     return rc;
   }
-  rc = right_->get_value(tuple, right_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-    return rc;
+  if (right_) { // 只有在非取反运算中右子表达式才非空
+    rc = right_->get_value(tuple, right_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of right expression in arithmetic. rc=%s", strrc(rc));
+      return rc;
+    }
   }
   return calc_value(left_value, right_value, value);
 }
@@ -505,14 +515,14 @@ RC ArithmeticExpr::try_get_value(Value &value) const
 
   rc = left_->try_get_value(left_value);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+    LOG_WARN("failed to try to get value of left expression in arithmetic. rc=%s", strrc(rc));
     return rc;
   }
 
   if (right_) {
     rc = right_->try_get_value(right_value);
     if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+      LOG_WARN("failed to try to get value of right expression in arithmetic. rc=%s", strrc(rc));
       return rc;
     }
   }

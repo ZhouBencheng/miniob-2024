@@ -22,6 +22,7 @@ string token_name(const char *sql_string, YYLTYPE *llocp)
 
 int yyerror(YYLTYPE *llocp, const char *sql_string, ParsedSqlResult *sql_result, yyscan_t scanner, const char *msg)
 {
+  fprintf(stderr, "Error: %s at line %d, column %d\n", msg, llocp->first_line, llocp->first_column);
   std::unique_ptr<ParsedSqlNode> error_sql_node = std::make_unique<ParsedSqlNode>(SCF_ERROR);
   error_sql_node->error.error_msg = msg;
   error_sql_node->error.line = llocp->first_line;
@@ -161,8 +162,10 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <condition_list>      where
 %type <condition_list>      condition_list
 %type <string>              storage_format
+%type <string>              aggregation_name
 %type <relation_list>       rel_list
 %type <expression>          expression
+%type <expression>          aggregation_func
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
 %type <sql_node>            calc_stmt
@@ -189,9 +192,11 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
+%precedence LOWEST
 %left '+' '-'
 %left '*' '/'
-%nonassoc UMINUS /* %nonasoc表示运算符的非结合特性，改行代码定义一个一元符号运算符UMINUS */
+%nonassoc UMINUS /* %nonasoc表示运算符的非结合特性，该行代码定义一个一元符号运算符UMINUS */
+
 %%
 
 commands: command_wrapper opt_semicolon  //commands or sqls. parser starts here.
@@ -373,7 +378,7 @@ type:
     | VECTOR_T { $$ = static_cast<int>(AttrType::VECTORS); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE /* bison解析器从右到左解析规则，因此value_list中存储的元素顺序相反 */
+    INSERT INTO ID VALUES LBRACE expression value_list RBRACE /* bison解析器从右到左解析规则，因此value_list中存储的元素顺序相反 */
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
@@ -381,7 +386,13 @@ insert_stmt:        /*insert   语句的语法解析树*/
         $$->insertion.values.swap(*$7);
         delete $7;
       }
-      $$->insertion.values.emplace_back(*$6);
+      Value value;
+      if ($6->try_get_value(value) == RC::SUCCESS) { // 假设表达式都是常量表达式，需要从中获取常量
+        $$->insertion.values.emplace_back(value);
+      } else {
+        yyerror(&@$, sql_string, sql_result, scanner, "Failed to convert expression to value in insert statement");
+        YYERROR;
+      }
       std::reverse($$->insertion.values.begin(), $$->insertion.values.end());
       delete $6;
       free($3);
@@ -393,13 +404,19 @@ value_list:
     {
       $$ = nullptr;
     }
-    | COMMA value value_list  { 
+    | COMMA expression value_list  { 
       if ($3 != nullptr) {
         $$ = $3;
       } else {
         $$ = new std::vector<Value>;
       }
-      $$->emplace_back(*$2);
+      Value value;
+      if ($2->try_get_value(value) == RC::SUCCESS) {
+        $$->emplace_back(value);
+      } else {
+        yyerror(&@$, sql_string, sql_result, scanner, "Failed to convert expression to value in insert statement");
+        YYERROR;
+      }
       delete $2;
     }
     ;
@@ -443,12 +460,18 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     }
     ;
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where 
+    UPDATE ID SET ID EQ expression where 
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
       $$->update.attribute_name = $4;
-      $$->update.value = *$6;
+      Value value;
+      if ($6->try_get_value(value) == RC::SUCCESS) {
+        $$->update.value = value;
+      } else {
+        yyerror(&@$, sql_string, sql_result, scanner, "Failed to convert expression to value in update statement");
+        YYERROR;
+      }
       if ($7 != nullptr) {
         $$->update.conditions.swap(*$7);
         delete $7;
@@ -519,7 +542,7 @@ expression:
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::SUB, $1, $3, sql_string, &@$);
     }
     | expression '*' expression {
-      $$ = create_arithmetic_expression(ArithmeticExpr::Type::MUL, $1, $3, sql_string, &@$);
+      $$ = create_arithmetic_expression(ArithmeticExpr::Type::MUL, $1, $3, sql_string, &@$);;
     }
     | expression '/' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
@@ -545,52 +568,27 @@ expression:
     | '*' {
       $$ = new StarExpr();
     }
-    | COUNT LBRACE expression_list RBRACE {
+    | aggregation_func {
+      $$ = $1;
+    }
+
+aggregation_func:
+    aggregation_name LBRACE expression_list RBRACE {
       if ($3 == nullptr || $3->size() != 1) {
-        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid COUNT arguments");
         Expression *none_expr = new NoneExpr();
-        $$ = new UnboundAggregateExpr("COUNT", none_expr);
+        $$ = new UnboundAggregateExpr($1, none_expr);
       } else {
-        $$ = create_aggregate_expression("COUNT", $3->at(0).get(), sql_string, &@$);
-      }
-    } 
-    | SUM LBRACE expression_list RBRACE {
-      if ($3 == nullptr || $3->size() != 1) {
-        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid SUM arguments");
-        Expression *none_expr = new NoneExpr();
-        $$ = new UnboundAggregateExpr("SUM", none_expr);
-      } else {
-        $$ = create_aggregate_expression("SUM", $3->at(0).get(), sql_string, &@$);
-      }
-    } 
-    | MAX LBRACE expression_list RBRACE {
-      if ($3 == nullptr || $3->size() != 1) {
-        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid MAX arguments");
-        Expression *none_expr = new NoneExpr();
-        $$ = new UnboundAggregateExpr("MAX", none_expr);
-      } else {
-        $$ = create_aggregate_expression("MAX", $3->at(0).get(), sql_string, &@$);
-      }
-    } 
-    | MIN LBRACE expression_list RBRACE {
-      if ($3 == nullptr || $3->size() != 1) {
-        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid MIN arguments");
-        Expression *none_expr = new NoneExpr();
-        $$ = new UnboundAggregateExpr("MIN", none_expr);
-      } else {
-        $$ = create_aggregate_expression("MIN", $3->at(0).get(), sql_string, &@$);
-      }
-    } 
-    | AVG LBRACE expression_list RBRACE {
-      if ($3 == nullptr || $3->size() != 1) {
-        // yyerror(&@$, sql_string, sql_result, scanner, "Invalid AVG arguments");
-        Expression *none_expr = new NoneExpr();
-        $$ = new UnboundAggregateExpr("AVG", none_expr);
-      } else {
-        $$ = create_aggregate_expression("AVG", $3->at(0).get(), sql_string, &@$);
+        $$ = create_aggregate_expression($1, $3->at(0).get(), sql_string, &@$);
       }
     }
-    // your code here
+    ;
+
+aggregation_name:
+    COUNT { $$ = (char *)"COUNT"; }
+    | SUM { $$ = (char *)"SUM"; }
+    | MAX { $$ = (char *)"MAX"; }
+    | MIN { $$ = (char *)"MIN"; }
+    | AVG { $$ = (char *)"AVG"; }
     ;
 
 rel_attr:
@@ -637,7 +635,8 @@ where:
       $$ = nullptr;
     }
     | WHERE condition_list {
-      $$ = $2;  
+      $$ = new std::vector<ConditionSqlNode>;
+      $$->swap(*$2);  
     }
     ;
 condition_list:
@@ -647,63 +646,23 @@ condition_list:
     }
     | condition {
       $$ = new std::vector<ConditionSqlNode>;
-      $$->emplace_back(*$1);
+      $$->emplace_back(std::move(*$1));
       delete $1;
     }
     | condition AND condition_list {
       $$ = $3;
-      $$->emplace_back(*$1);
+      $$->emplace_back(std::move(*$1));
       delete $1;
     }
     ;
 condition:
-    rel_attr comp_op value
+    expression comp_op expression
     {
       $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
+      $$-> left_expression.reset($1);
+      $$->right_expression.reset($3);
       $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | value comp_op value 
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | rel_attr comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | value comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
+      LOG_DEBUG("condition: %s | %s", $1->name(),  $3->name());
     }
     ;
 

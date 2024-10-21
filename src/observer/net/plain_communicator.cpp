@@ -279,43 +279,36 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
     assert(tuple != nullptr);
 
     int cell_num = tuple->cell_num();
+    string newline = "";
+    bool is_divided_by_zero = false;
     for (int i = 0; i < cell_num; i++) {
       if (i != 0) {
-        const char *delim = " | ";
-
-        rc = writer_->writen(delim, strlen(delim));
-        if (OB_FAIL(rc)) {
-          LOG_WARN("failed to send data to client. err=%s", strerror(errno));
-          sql_result->close();
-          return rc;
-        }
+        newline += " | ";
       }
 
       Value value;
-      rc = tuple->cell_at(i, value);
+      rc = tuple->cell_at(i, value); // TODO 此处取出查询结果中每一个单元的值，当前单元若为除0结果则直接break
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to get tuple cell value. rc=%s", strrc(rc));
         sql_result->close();
         return rc;
       }
+      if (value.attr_type() == AttrType::NULLS) { // 说明当前获得了一个除0结果的value
+        LOG_DEBUG("get a value divided by zero");
+        is_divided_by_zero = true;
+        break;
+      }
 
-      string cell_str = value.to_string();
-
-      rc = writer_->writen(cell_str.data(), cell_str.size());
+      newline += value.to_string();
+    }
+    if (!is_divided_by_zero) {
+      newline += "\n";
+      rc = writer_->writen(newline.data(), newline.size());
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));
         sql_result->close();
         return rc;
       }
-    }
-
-    char newline = '\n';
-
-    rc = writer_->writen(&newline, 1);
-    if (OB_FAIL(rc)) {
-      LOG_WARN("failed to send data to client. err=%s", strerror(errno));
-      sql_result->close();
-      return rc;
     }
   }
 

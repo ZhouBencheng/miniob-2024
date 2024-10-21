@@ -171,7 +171,12 @@ RC ExpressionBinder::bind_unbound_field_expression(
 
     Field      field(table, field_meta);
     FieldExpr *field_expr = new FieldExpr(field);
-    field_expr->set_name(field_name);
+
+    string expr_name = field_name;
+    if (!is_blank(table_name)) {
+      expr_name = string(table_name) + "." + field_name;
+    }
+    field_expr->set_name(expr_name);
     bound_expressions.emplace_back(field_expr);
   }
 
@@ -327,7 +332,7 @@ RC ExpressionBinder::bind_arithmetic_expression(
   }
 
   if (child_bound_expressions.size() != 1) {
-    LOG_WARN("invalid left children number of comparison expression: %d", child_bound_expressions.size());
+    LOG_WARN("invalid left children number of arithmetic expression: %d", child_bound_expressions.size());
     return RC::INVALID_ARGUMENT;
   }
 
@@ -342,16 +347,19 @@ RC ExpressionBinder::bind_arithmetic_expression(
     return rc;
   }
 
-  if (child_bound_expressions.size() != 1) {
-    LOG_WARN("invalid right children number of comparison expression: %d", child_bound_expressions.size());
-    return RC::INVALID_ARGUMENT;
-  }
+  // 当表达式为取反运算时，右子表达式为空指针，绑定结果也为空
+  if (arithmetic_expr->arithmetic_type() != ArithmeticExpr::Type::NEGATIVE) {
+    if (child_bound_expressions.size() != 1) {
+      LOG_WARN("invalid right children number of arithmetic expression: %d", child_bound_expressions.size());
+      return RC::INVALID_ARGUMENT;
+    }
 
-  unique_ptr<Expression> &right = child_bound_expressions[0];
-  if (right.get() != right_expr.get()) {
-    right_expr.reset(right.release());
+    unique_ptr<Expression> &right = child_bound_expressions[0];
+    if (right.get() != right_expr.get()) {
+      right_expr.reset(right.release());
+    }
   }
-
+    
   bound_expressions.emplace_back(std::move(expr));
   return RC::SUCCESS;
 }

@@ -52,17 +52,34 @@ RC IntegerType::negative(const Value &val, Value &result) const
   return RC::SUCCESS;
 }
 
+RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
+{
+  switch (type) {
+    case AttrType::INTS:
+      result.set_int(val.get_int());
+      break;
+    case AttrType::FLOATS:
+      result.set_float(val.get_int());
+      break;
+    case AttrType::CHARS:
+      result.set_string(std::to_string(val.get_int()).c_str());
+      break;
+    case AttrType::DATES:
+      result.set_date(val.get_int());
+      break;
+    default:
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+  }
+  return RC::SUCCESS;
+}
+
 int IntegerType::cast_cost(AttrType type)
 {
   switch (type) {
     case AttrType::INTS:
       return 0;
     case AttrType::FLOATS:
-      return 2;
-    case AttrType::CHARS:
-      return 2;
-    case AttrType::DATES:
-      return 3;
+      return 1;
     default:
       return INT32_MAX;
   }

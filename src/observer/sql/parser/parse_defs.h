@@ -68,15 +68,24 @@ enum CompOp
  */
 struct ConditionSqlNode
 {
-  int left_is_attr;              ///< TRUE if left-hand side is an attribute
-                                 ///< 1时，操作符左边是属性名，0时，是属性值
-  Value          left_value;     ///< left-hand side value if left_is_attr = FALSE
-  RelAttrSqlNode left_attr;      ///< left-hand side attribute
+  // 将Condition中的左值和右值都替换为Expression类型
+  // int left_is_attr;              ///< TRUE if left-hand side is an attribute
+  //                                ///< 1时，操作符左边是属性名，0时，是属性值
+  // Value          left_value;     ///< left-hand side value if left_is_attr = FALSE
+  // RelAttrSqlNode left_attr;      ///< left-hand side attribute
+  ConditionSqlNode()                                   = default;
+  ConditionSqlNode(const ConditionSqlNode&)            = delete ; // 禁止拷贝
+  ConditionSqlNode& operator=(const ConditionSqlNode&) = delete ; // 禁止拷贝赋值
+  ConditionSqlNode(ConditionSqlNode&&)                 = default; // 允许移动构造
+  ConditionSqlNode& operator=(ConditionSqlNode&&)      = default; // 允许移动赋值
+  
+  std::unique_ptr<Expression> left_expression;
   CompOp         comp;           ///< comparison operator
-  int            right_is_attr;  ///< TRUE if right-hand side is an attribute
-                                 ///< 1时，操作符右边是属性名，0时，是属性值
-  RelAttrSqlNode right_attr;     ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
-  Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
+  // int            right_is_attr;  ///< TRUE if right-hand side is an attribute
+  //                                ///< 1时，操作符右边是属性名，0时，是属性值
+  // RelAttrSqlNode right_attr;     ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
+  // Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
+  std::unique_ptr<Expression> right_expression;
 };
 
 /**
@@ -283,6 +292,13 @@ enum SqlCommandFlag
   SCF_EXPLAIN,
   SCF_SET_VARIABLE,  ///< 设置变量
 };
+
+static string sql_command[] = {"SCF_ERROR", "SCF_CALC", "SCF_SELECT", "SCF_INSERT", 
+                             "SCF_UPDATE", "SCF_DELETE", "SCF_CREATE_TABLE", "SCF_DROP_TABLE", 
+                             "SCF_CREATE_INDEX", "SCF_DROP_INDEX", "SCF_SYNC", "SCF_SHOW_TABLES", 
+                             "SCF_DESC_TABLE", "SCF_BEGIN", "SCF_COMMIT", "SCF_CLOG_SYNC", 
+                             "SCF_ROLLBACK", "SCF_LOAD_DATA", "SCF_HELP", "SCF_EXIT", 
+                             "SCF_EXPLAIN", "SCF_SET_VARIABLE"};
 /**
  * @brief 表示一个SQL语句
  * @ingroup SQLParser
@@ -309,6 +325,11 @@ public:
 public:
   ParsedSqlNode();
   explicit ParsedSqlNode(SqlCommandFlag flag);
+  enum SqlCommandFlag get_flag() const { return flag; }
+  const char* SCF_to_string(enum SqlCommandFlag flag)
+  {
+    return sql_command[static_cast<int>(flag)].c_str();
+  }
 };
 
 /**

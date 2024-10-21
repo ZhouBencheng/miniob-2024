@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include <sql/parser/expression_binder.h>
 
 FilterStmt::~FilterStmt()
 {
@@ -29,7 +30,7 @@ FilterStmt::~FilterStmt()
 
 // 将where条件子句中的每一个过滤条件转化为FilterUnit对象，并封装在vector容器中，默认所有条件之间是AND关系
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
+    ExpressionBinder &expression_binder, ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
@@ -38,7 +39,9 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   for (int i = 0; i < condition_num; i++) {
     FilterUnit *filter_unit = nullptr;
 
-    rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
+    // 注意在将ConditionSqlNode类型的成员变量都转化为Expression的unique指针时，我们从parser到resolver传递都需要使用移动语义
+    // 因此在下面这个方法中，我们将conditions中的元素一个个构造为FilterUnit对象后，conditions中的元素也将不复存在
+    rc = create_filter_unit(db, default_table, tables, expression_binder, conditions[i], filter_unit);
     if (rc != RC::SUCCESS) {
       delete tmp_stmt;
       LOG_WARN("failed to create filter unit. condition index=%d", i);
@@ -89,7 +92,7 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
 }
 
 RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode &condition, FilterUnit *&filter_unit)
+    ExpressionBinder &expression_binder, ConditionSqlNode &condition, FilterUnit *&filter_unit)
 {
   RC rc = RC::SUCCESS;
 
@@ -101,40 +104,48 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   filter_unit = new FilterUnit;
 
-  if (condition.left_is_attr) {
-    Table           *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc                     = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_left(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.left_value);
-    filter_unit->set_left(filter_obj);
-  }
+  // if (condition.left_is_attr) {
+  //   Table           *table = nullptr;
+  //   const FieldMeta *field = nullptr;
+  //   rc                     = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
+  //   if (rc != RC::SUCCESS) {
+  //     LOG_WARN("cannot find attr");
+  //     return rc;
+  //   }
+  //   FilterObj filter_obj;
+  //   filter_obj.init_attr(Field(table, field));
+  //   filter_unit->set_left(filter_obj);
+  // } else {
+  //   FilterObj filter_obj;
+  //   filter_obj.init_value(condition.left_value);
+  //   filter_unit->set_left(filter_obj);
+  // }
 
-  if (condition.right_is_attr) {
-    Table           *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc                     = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_right(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.right_value);
-    filter_unit->set_right(filter_obj);
+  // if (condition.right_is_attr) {
+  //   Table           *table = nullptr;
+  //   const FieldMeta *field = nullptr;
+  //   rc                     = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
+  //   if (rc != RC::SUCCESS) {
+  //     LOG_WARN("cannot find attr");
+  //     return rc;
+  //   }
+  //   FilterObj filter_obj;
+  //   filter_obj.init_attr(Field(table, field));
+  //   filter_unit->set_right(filter_obj);
+  // } else {
+  //   FilterObj filter_obj;
+  //   filter_obj.init_value(condition.right_value);
+  //   filter_unit->set_right(filter_obj);
+  // }
+  vector<unique_ptr<Expression>> bound_expressions;
+  RC rc1 = expression_binder.bind_expression(condition.left_expression, bound_expressions);
+  RC rc2 = expression_binder.bind_expression(condition.right_expression, bound_expressions);
+  if (rc1 != RC::SUCCESS || rc2 != RC::SUCCESS) {
+    LOG_WARN("failed to bind expression when creating filter stmt");
+    return rc1 != RC::SUCCESS ? rc1 : rc2;
   }
-
+  filter_unit->set_left(std::move(bound_expressions[0]));
+  filter_unit->set_right(std::move(bound_expressions[1]));
   filter_unit->set_comp(comp);
 
   // 检查两个类型是否能够比较
