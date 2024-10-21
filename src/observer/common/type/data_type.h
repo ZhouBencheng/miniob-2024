@@ -77,6 +77,16 @@ public:
   virtual RC negative(const Value &val, Value &result) const { return RC::UNSUPPORTED; }
 
   /**
+   * @brief 计算 vector 类型的聚合值，并将结果保存到 result 中。其他数据类型都不支持
+   */
+  virtual RC vector_aggregation(const Value &val, Value &result) const { return RC::UNSUPPORTED; }
+
+  /**
+   * @brief 计算根号值，当前只支持int类型和float类型
+   */
+  virtual RC square(const Value &val, Value &result) const { return RC::UNSUPPORTED; }
+
+  /**
    * @brief 将 val 转换为 type 类型，并将结果保存到 result 中
    * @details 设置同类型转换为最低成本——0
    *          int-float选择int->float

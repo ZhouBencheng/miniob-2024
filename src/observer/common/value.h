@@ -88,6 +88,16 @@ public:
     return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
 
+  static RC vector_aggregation(const Value &value, Value &result)
+  {
+    return DataType::type_instance(value.attr_type())->vector_aggregation(value, result);
+  }
+
+  static RC square(const Value &value, Value &result)
+  {
+    return DataType::type_instance(value.attr_type())->square(value, result);
+  }
+
   void set_type(AttrType type) { this->attr_type_ = type; }
   void set_data(char *data, int length);
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }

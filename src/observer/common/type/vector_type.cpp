@@ -157,7 +157,6 @@ RC VectorType::subtract(const Value &left, const Value &right, Value &result) co
 
 RC VectorType::multiply(const Value &left, const Value &right, Value &result) const
 {
-{
     bool left_is_int  = left.is_int_vector();
     bool right_is_int = right.is_int_vector();
     int left_len  = (left.length()  - 1) / 4;
@@ -204,6 +203,27 @@ RC VectorType::multiply(const Value &left, const Value &right, Value &result) co
     delete[] result_data;
     return RC::SUCCESS;
 }
+
+RC VectorType::vector_aggregation(const Value &val, Value &result) const
+{
+    bool is_int = val.is_int_vector();
+    int len = (val.length() - 1) / 4;
+    if (is_int) {
+        int *p = (int *)val.get_vector();
+        int result_val = 0;
+        for (int i = 0; i < len; i++) {
+            result_val += p[i];
+        }
+        result.set_int(result_val);
+    } else {
+        float *p = (float *)val.get_vector();
+        float result_val = 0;
+        for (int i = 0; i < len; i++) {
+            result_val += p[i];
+        }
+        result.set_float(result_val);
+    }
+    return RC::SUCCESS;
 }
 
 RC VectorType::to_string(const Value &val, string &result) const

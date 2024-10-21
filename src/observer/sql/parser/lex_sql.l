@@ -150,6 +150,17 @@ FORMAT                                  RETURN_TOKEN(FORMAT);
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 
+\[[^\]]*\]                              {
+                                          int   len = strlen(yytext);
+                                          char *data = (char *)malloc(len + 3);
+                                          strncpy(data + 1, yytext, len);
+                                          data[0] = '\"';
+                                          data[len + 1] = '\"';
+                                          data[len + 2] = '\0';
+                                          yylval->string = data;
+                                          RETURN_TOKEN(SSS);
+                                        }
+
 .                                       LOG_DEBUG("Unknown character [%c]",yytext[0]); return yytext[0];
 %%
 

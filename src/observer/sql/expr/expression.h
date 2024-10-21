@@ -39,6 +39,7 @@ enum class ExprType
   STAR,                 ///< 星号，表示所有字段
   UNBOUND_FIELD,        ///< 未绑定的字段，需要在resolver阶段解析为FieldExpr
   UNBOUND_AGGREGATION,  ///< 未绑定的聚合函数，需要在resolver阶段解析为AggregateExpr
+  UNBOUND_VECTOR_FUNC,  ///< 未绑定的向量函数，需要在resolver阶段解析为VectorExpr
 
   FIELD,        ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
   VALUE,        ///< 常量值
@@ -47,6 +48,7 @@ enum class ExprType
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
   AGGREGATION,  ///< 聚合运算
+  VECTOR_FUNC,  ///< 向量运算
 };
 
 /**
@@ -483,4 +485,67 @@ public:
 private:
   Type                        aggregate_type_;
   std::unique_ptr<Expression> child_;
+};
+
+/// 未绑定的向量函数，需要在resolver阶段解析为VectorExpr
+class UnboundVectorExpr : public Expression
+{
+public:
+  UnboundVectorExpr(const char *vector_func_name, Expression *left, Expression *right);
+  virtual ~UnboundVectorExpr() = default;
+
+  ExprType type() const override { return ExprType::UNBOUND_VECTOR_FUNC; }
+
+  const char *vector_func_name() const { return vector_func_name_.c_str(); }
+
+  std::unique_ptr<Expression> &left() { return left_; }
+  std::unique_ptr<Expression> &right() { return right_; }
+
+  RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
+  AttrType value_type() const override { return AttrType::VECTORS; }
+
+private:
+  std::string                 vector_func_name_;
+  std::unique_ptr<Expression> left_;
+  std::unique_ptr<Expression> right_;
+};
+
+class VectorExpr : public Expression
+{
+public:
+  enum class Type
+  {
+    L2_DISTANCE,
+    COSINE_DISTANCE,
+    INNER_PRODUCT,
+  };
+
+public:
+  VectorExpr(Type type, Expression *left, Expression *right);
+  VectorExpr(Type type, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
+  virtual ~VectorExpr() = default;
+
+  ExprType type() const override { return ExprType::VECTOR_FUNC; }
+
+  RC       get_value(const Tuple &tuple, Value &value) const override;
+  
+  AttrType value_type() const override { return AttrType::VECTORS; }
+
+  Type     vector_func_type() const { return vector_func_type_; }
+
+  std::unique_ptr<Expression> &left()  { return left_; }
+  std::unique_ptr<Expression> &right() { return right_; }
+
+public:
+  static RC type_from_string(const char *type_str, Type &type);
+
+private:
+  static RC calc_l2_distance(const Value &left, const Value &right, Value &value);
+  static RC calc_cosine_distance(const Value &left, const Value &right, Value &value);
+  static RC calc_inner_product(const Value &left, const Value &right, Value &value);
+
+private:
+  Type                        vector_func_type_;
+  std::unique_ptr<Expression> left_;
+  std::unique_ptr<Expression> right_;
 };

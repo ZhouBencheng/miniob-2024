@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 #include "common/lang/limits.h"
 #include "common/value.h"
+#include <complex>
 
 int FloatType::compare(const Value &left, const Value &right) const
 {
@@ -56,6 +57,13 @@ RC FloatType::divide(const Value &left, const Value &right, Value &result) const
 RC FloatType::negative(const Value &val, Value &result) const
 {
   result.set_float(-val.get_float());
+  return RC::SUCCESS;
+}
+
+RC FloatType::square(const Value &val, Value &result) const
+{
+  float val_float = val.get_float();
+  result.set_float(std::sqrt(val_float));
   return RC::SUCCESS;
 }
 

@@ -52,6 +52,17 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   return expr;
 }
 
+UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
+                                     Expression *left,
+                                     Expression *right,
+                                     const char *sql_string,
+                                     YYLTYPE *llocp)
+{
+  UnboundVectorExpr *expr = new UnboundVectorExpr(vector_func_name, left, right);
+  expr->set_name(token_name(sql_string, llocp));
+  return expr;
+}
+
 %}
 
 %define api.pure full
@@ -166,9 +177,11 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <condition_list>      condition_list
 %type <string>              storage_format
 %type <string>              aggregation_name
+%type <string>              vector_func_name
 %type <relation_list>       rel_list
 %type <expression>          expression
 %type <expression>          aggregation_func
+%type <expression>          vector_func
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
 %type <sql_node>            calc_stmt
@@ -602,14 +615,14 @@ aggregation_name:
     ;
 
 vector_func:
-    vector_func_name LBRACE value COMMA value RBRACE {
-
+    vector_func_name LBRACE expression COMMA expression RBRACE {
+      $$ = create_vector_expression($1, $3, $5, sql_string, &@$);
     }
 
 vector_func_name:
-    L2_DISTANCE { $$ = (char *)"L2_DISTANCE"; }
+    L2_DISTANCE       { $$ = (char *)"L2_DISTANCE"; }
     | COSINE_DISTANCE { $$ = (char *)"COSINE_DISTANCE"; }
-    | INNER_PRODUCT { $$ = (char *)"INNER_PRODUCT"; }
+    | INNER_PRODUCT   { $$ = (char *)"INNER_PRODUCT"; }
     ;
 
 rel_attr:

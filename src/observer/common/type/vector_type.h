@@ -28,6 +28,7 @@ public:
   RC add(const Value &left, const Value &right, Value &result) const override;
   RC subtract(const Value &left, const Value &right, Value &result) const override;
   RC multiply(const Value &left, const Value &right, Value &result) const override;
+  RC vector_aggregation(const Value &val, Value &result) const override;
 
   RC to_string(const Value &val, string &result) const override;
 };
