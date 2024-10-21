@@ -356,9 +356,9 @@ attr_def:
       $$->type = (AttrType)$2;
       $$->name = $1;
       if ($2 == static_cast<int>(AttrType::VECTORS)) { // 向量的字节长度为元素个数4倍
-        $$->length = $4 * 4;
+        $$->length = $4 * 4 + 1;
       } else {
-        $$->length = 4;
+        $$->length = $4;
       }
       free($1);
     }

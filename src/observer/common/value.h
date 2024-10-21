@@ -113,8 +113,8 @@ public:
   string      get_string() const;
   bool        get_boolean() const;
   int         get_date() const;
-  RC          get_vector_type(VectorType::Type *type) const;
   const char *get_vector() const;
+  bool        is_int_vector() const;
 
 private:
   void set_int(int val);
@@ -122,12 +122,10 @@ private:
   void set_string(const char *s, int len = 0);
   void set_string_from_other(const Value &other);
   void set_date(int val);
-  void set_vector(const char *data, int len, VectorType::Type type); 
-  //! 注意不同于其他类型，向量类型Value的length_记录向量长度而不是字节长度，字节长度为向量宽度的4倍，此处len等同于向量宽度
+  void set_vector(const char *data, int len); 
 
 private:
   AttrType attr_type_ = AttrType::UNDEFINED;
-  VectorType::Type vector_type_ = VectorType::Type::INT;
   int      length_    = 0;
 
   union Val

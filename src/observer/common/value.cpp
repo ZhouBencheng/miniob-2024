@@ -128,7 +128,7 @@ void Value::set_data(char *data, int length)
       length_            = length;
     } break;
     case AttrType::VECTORS: {
-      set_vector(data, length, vector_type_);
+      set_vector(data, length);
     } break;
     default: {
       LOG_WARN("unknown data type in Value::set_data: %d", attr_type_);
@@ -188,7 +188,7 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
 }
 
-void Value::set_vector(const char *data, int len, VectorType::Type type)
+void Value::set_vector(const char *data, int len)
 {
   reset();
   attr_type_ = AttrType::VECTORS;
@@ -200,7 +200,6 @@ void Value::set_vector(const char *data, int len, VectorType::Type type)
     value_.pointer_value_ = new char[len];
     memcpy(value_.pointer_value_, data, len);
     length_               = len;
-    vector_type_          = type;
   }
 }
 
@@ -223,7 +222,7 @@ void Value::set_value(const Value &value)
       set_date(value.get_date());
     } break;
     case AttrType::VECTORS: {
-      set_vector(value.get_vector(), value.length(), value.vector_type_);
+      set_vector(value.get_vector(), value.length());
     } break;
     default: {
       ASSERT(false, "got an invalid value type");
@@ -293,7 +292,7 @@ int Value::get_int() const
       return (int)(value_.bool_value_);
     }
     default: {
-      LOG_WARN("unknown data type. type=%d", attr_type_);
+      LOG_WARN("unknown data type in get_int. type=%d", attr_type_);
       return 0;
     }
   }
@@ -321,7 +320,7 @@ float Value::get_float() const
       return float(value_.bool_value_);
     } break;
     default: {
-      LOG_WARN("unknown data type. type=%d", attr_type_);
+      LOG_WARN("unknown data type in get_float. type=%d", attr_type_);
       return 0;
     }
   }
@@ -362,7 +361,7 @@ bool Value::get_boolean() const
       return value_.bool_value_;
     } break;
     default: {
-      LOG_WARN("unknown data type. type=%d", attr_type_);
+      LOG_WARN("unknown data type in get_boolean. type=%d", attr_type_);
       return false;
     }
   }
@@ -393,25 +392,23 @@ int Value::get_date() const
       return value_.int_value_;
     }
     default: {
-      LOG_WARN("unknown data type. type=%d", attr_type_);
+      LOG_WARN("unknown data type in get_date. type=%d", attr_type_);
       return 0;
     }
   }
 }
 
-RC Value::get_vector_type(VectorType::Type *type) const 
-{
-    if (attr_type_ != AttrType::VECTORS) {
-      type = nullptr;
-      return RC::INVALID_ARGUMENT;
-    }
-    *type = vector_type_;
-    return RC::SUCCESS;
-}
-
 const char *Value::get_vector() const {
   if (attr_type_ != AttrType::VECTORS) {
+    LOG_WARN("attr type is not VECTORS. type=%d", attr_type_);
     return nullptr;
   }
   return value_.pointer_value_;
+}
+
+bool Value::is_int_vector() const {
+  if (attr_type_ != AttrType::VECTORS) {
+    return false;
+  }
+  return *(value_.pointer_value_ + length_ - 1);
 }

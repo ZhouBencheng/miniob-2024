@@ -3,37 +3,211 @@
 #include "common/log/log.h"
 #include "common/type/vector_type.h"
 #include "common/lang/vector_utils.h"
+#include "common/lang/comparator.h"
 
 int VectorType::compare(const Value &left, const Value &right) const
 {
-    return 0;
+    ASSERT(left.attr_type()  == AttrType::VECTORS, "left type is not vector");
+    ASSERT(right.attr_type() == AttrType::VECTORS, "right type is not vector");
+    int left_len  = (left.length()  - 1) / 4;
+    int right_len = (right.length() - 1) / 4;
+    bool left_is_int  = left.is_int_vector();
+    bool right_is_int = right.is_int_vector();
+    int i = 0;
+    // 无法知道vector的类型，所以需要分别处理int和float
+    if (left_is_int && right_is_int) {
+        int *p = (int *)left.get_vector();
+        int *q = (int *)right.get_vector();
+        while (i < left_len && i < right_len) {
+            if (p[i] != q[i]) {
+                return common::compare_int((void*)&p[i], (void*)&q[i]);
+            }
+            i++;
+        }
+    } else if (!left_is_int && right_is_int) {
+        float *p = (float *)left.get_vector();
+        int   *q = (int *)right.get_vector();
+        while (i < left_len && i < right_len) {
+            float q_val = (float)q[i];
+            if (p[i] != q_val) {
+                return common::compare_float((void*)&p[i], (void*)&q_val);
+            }
+            i++;
+        }
+    } else if (left_is_int && !right_is_int) {
+        int   *p = (int *)left.get_vector();
+        float *q = (float *)right.get_vector();
+        while (i < left_len && i < right_len) {
+            float p_val = (float)p[i];
+            if (p_val != q[i]) {
+                return common::compare_float((void*)&p_val, (void*)&q[i]);
+            }
+            i++;
+        }
+    } else {
+        float *p = (float *)left.get_vector();
+        float *q = (float *)right.get_vector();
+        while (i < left_len && i < right_len) {
+            if (p[i] != q[i]) {
+                return common::compare_float((void*)&p[i], (void*)&q[i]);
+            }
+            i++;
+        }
+    }
+    return common::compare_int((void*)&left_len, (void*)&right_len);
 }
 
 RC VectorType::add(const Value &left, const Value &right, Value &result) const
 {
-    return RC::UNIMPLEMENTED;
+    bool left_is_int  = left.is_int_vector();
+    bool right_is_int = right.is_int_vector();
+    int left_len  = (left.length()  - 1) / 4;
+    int right_len = (right.length() - 1) / 4;
+    if (left_len != right_len) {
+        LOG_WARN("left and right vector length mismatch. left_len=%d, right_len=%d", left_len, right_len);
+        return RC::INVALID_ARGUMENT;
+    }
+    char *result_data = new char[left.length()];
+    if (left_is_int && right_is_int) {
+        int *p = (int *)left.get_vector();
+        int *q = (int *)right.get_vector();
+        int *r = (int *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = p[i] + q[i];
+        }
+        result_data[left.length() - 1] = true;
+    } else if (!left_is_int && right_is_int) {
+        float *p = (float *)left.get_vector();
+        int   *q = (int *)right.get_vector();
+        float *r = (float *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = p[i] + (float)q[i];
+        }
+        result_data[left.length() - 1] = false;
+    } else if (left_is_int && !right_is_int) {
+        int   *p = (int *)left.get_vector();
+        float *q = (float *)right.get_vector();
+        float *r = (float *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = (float)p[i] + q[i];
+        }
+        result_data[left.length() - 1] = false;
+    } else {
+        float *p = (float *)left.get_vector();
+        float *q = (float *)right.get_vector();
+        float *r = (float *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = p[i] + q[i];
+        }
+        result_data[left.length() - 1] = false;
+    }
+    result.set_vector(result_data, left.length());
+    delete[] result_data;
+    return RC::SUCCESS;
 }
 
 RC VectorType::subtract(const Value &left, const Value &right, Value &result) const
 {
-    return RC::UNIMPLEMENTED;
+    bool left_is_int  = left.is_int_vector();
+    bool right_is_int = right.is_int_vector();
+    int left_len  = (left.length()  - 1) / 4;
+    int right_len = (right.length() - 1) / 4;
+    if (left_len != right_len) {
+        LOG_WARN("left and right vector length mismatch. left_len=%d, right_len=%d", left_len, right_len);
+        return RC::INVALID_ARGUMENT;
+    }
+    char *result_data = new char[left.length()];
+    if (left_is_int && right_is_int) {
+        int *p = (int *)left.get_vector();
+        int *q = (int *)right.get_vector();
+        int *r = (int *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = p[i] - q[i];
+        }
+        result_data[left.length() - 1] = true;
+    } else if (!left_is_int && right_is_int) {
+        float *p = (float *)left.get_vector();
+        int   *q = (int *)right.get_vector();
+        float *r = (float *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = p[i] - (float)q[i];
+        }
+        result_data[left.length() - 1] = false;
+    } else if (left_is_int && !right_is_int) {
+        int   *p = (int *)left.get_vector();
+        float *q = (float *)right.get_vector();
+        float *r = (float *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = (float)p[i] - q[i];
+        }
+        result_data[left.length() - 1] = false;
+    } else {
+        float *p = (float *)left.get_vector();
+        float *q = (float *)right.get_vector();
+        float *r = (float *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = p[i] - q[i];
+        }
+        result_data[left.length() - 1] = false;
+    }
+    result.set_vector(result_data, left.length());
+    delete[] result_data;
+    return RC::SUCCESS;
 }
 
 RC VectorType::multiply(const Value &left, const Value &right, Value &result) const
 {
-    return RC::UNIMPLEMENTED;
+{
+    bool left_is_int  = left.is_int_vector();
+    bool right_is_int = right.is_int_vector();
+    int left_len  = (left.length()  - 1) / 4;
+    int right_len = (right.length() - 1) / 4;
+    if (left_len != right_len) {
+        LOG_WARN("left and right vector length mismatch. left_len=%d, right_len=%d", left_len, right_len);
+        return RC::INVALID_ARGUMENT;
+    }
+    char *result_data = new char[left.length()];
+    if (left_is_int && right_is_int) {
+        int *p = (int *)left.get_vector();
+        int *q = (int *)right.get_vector();
+        int *r = (int *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = p[i] * q[i];
+        }
+        result_data[left.length() - 1] = true;
+    } else if (!left_is_int && right_is_int) {
+        float *p = (float *)left.get_vector();
+        int   *q = (int *)right.get_vector();
+        float *r = (float *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = p[i] * (float)q[i];
+        }
+        result_data[left.length() - 1] = false;
+    } else if (left_is_int && !right_is_int) {
+        int   *p = (int *)left.get_vector();
+        float *q = (float *)right.get_vector();
+        float *r = (float *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = (float)p[i] * q[i];
+        }
+        result_data[left.length() - 1] = false;
+    } else {
+        float *p = (float *)left.get_vector();
+        float *q = (float *)right.get_vector();
+        float *r = (float *)result_data;
+        for (int i = 0; i < left_len; i++) {
+            r[i] = p[i] * q[i];
+        }
+        result_data[left.length() - 1] = false;
+    }
+    result.set_vector(result_data, left.length());
+    delete[] result_data;
+    return RC::SUCCESS;
+}
 }
 
 RC VectorType::to_string(const Value &val, string &result) const
 {
-    string ss;
-    VectorType::Type type = VectorType::Type::INT;
-    RC rc = val.get_vector_type(&type);
-    if (rc != RC::SUCCESS) {
-        LOG_WARN("failed to get vector type. type=%d", val.attr_type());
-        return rc;
-    }
-    common::vector_to_string(val.value_.pointer_value_, val.length(), type, ss);
-    result = ss;
+    common::vector_to_string(val.value_.pointer_value_, val.length(), result);
     return RC::SUCCESS;
 }

@@ -19,11 +19,6 @@ See the Mulan PSL v2 for more details. */
 class VectorType : public DataType
 {
 public:
-  enum class Type { // 表示向量存储的数据类型
-    UNKNOWN,
-    INT,
-    FLOAT
-  };
 
   VectorType() : DataType(AttrType::VECTORS) {}
   virtual ~VectorType() {}

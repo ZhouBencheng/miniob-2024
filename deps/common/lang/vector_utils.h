@@ -11,8 +11,8 @@ bool is_float(const char *str);
  * @param data (out)指向向量元素第一个字节的指针
  * @param len  (out)向量元素个数
  */
-RC vector_from_string(char *str, char **data, int *len, VectorType::Type *type);
+RC vector_from_string(char *str, char **data, int *len);
 
-RC vector_to_string(char *data, int len, VectorType::Type type, string &str);
+RC vector_to_string(char *data, int len, string &str);
 
 }

@@ -49,14 +49,13 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
     case AttrType::VECTORS:{
       char *data = nullptr;
       int   len  = 0;
-      VectorType::Type type = VectorType::Type::INT;
       RC rc = common::vector_from_string(val.value_.pointer_value_, 
-                  &data, &len, &type);
+                  &data, &len);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to convert string to vector. s=%s", val.value_.pointer_value_);
         return rc;
       }
-      result.set_vector(data, len, type);
+      result.set_vector(data, len);
     } break;
     default: return RC::UNIMPLEMENTED;
   }

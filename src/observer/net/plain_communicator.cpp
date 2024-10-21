@@ -287,7 +287,7 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
       }
 
       Value value;
-      rc = tuple->cell_at(i, value); // TODO 此处取出查询结果中每一个单元的值，当前单元若为除0结果则直接break
+      rc = tuple->cell_at(i, value);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to get tuple cell value. rc=%s", strrc(rc));
         sql_result->close();
