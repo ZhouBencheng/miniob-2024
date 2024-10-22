@@ -25,6 +25,7 @@ class FieldMeta;
 class FilterStmt;
 class Db;
 class Table;
+class BinderContext;
 
 /**
  * @brief 表示select语句
@@ -32,6 +33,30 @@ class Table;
  */
 class SelectStmt : public Stmt
 {
+public:
+  /**
+   * @brief 表示一个join语句，存储ParseSqlNode中的一个InnerJoinSqlNode
+   * @ingroup Statement
+   */
+  class JoinTables {
+  public:
+    JoinTables() = default;
+    ~JoinTables() = default;
+    JoinTables(JoinTables &&other) { // 移动构造
+      join_tables_.swap(other.join_tables_);
+      on_conds_.swap(other.on_conds_);
+    }
+    void push_join_table(Table *table, FilterStmt *on_cond) { // 完善一个Inner Join的解析结果
+      join_tables_.emplace_back(table);
+      on_conds_.emplace_back(on_cond);
+    }
+    const std::vector<Table *>      &join_tables() const { return join_tables_; }
+    const std::vector<FilterStmt *> &on_conds() const { return on_conds_; }
+  private:
+    std::vector<Table *>      join_tables_;
+    std::vector<FilterStmt *> on_conds_;
+  };
+
 public:
   SelectStmt() = default;
   ~SelectStmt() override;
@@ -42,15 +67,23 @@ public:
   static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt);
 
 public:
-  const std::vector<Table *> &tables() const { return tables_; }
-  FilterStmt                 *filter_stmt() const { return filter_stmt_; }
+  const std::vector<JoinTables> &join_tables() const { return join_tables_; }
+  FilterStmt                    *filter_stmt() const { return filter_stmt_; }
 
   std::vector<std::unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
   std::vector<std::unique_ptr<Expression>> &group_by() { return group_by_; }
 
 private:
+  static RC handle_from_clause(Db            *db, 
+    std::vector<InnerJoinSqlNode>            &inner_join_nodes,
+    BinderContext                            &binder_context, 
+    std::vector<Table *>                     &tables, 
+    std::unordered_map<std::string, Table *> &table_map,
+    std::vector<JoinTables>                  &join_tables);
+
+private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
-  std::vector<Table *>                     tables_;
+  std::vector<JoinTables>                  join_tables_;
   FilterStmt                              *filter_stmt_ = nullptr;
   std::vector<std::unique_ptr<Expression>> group_by_;
 };

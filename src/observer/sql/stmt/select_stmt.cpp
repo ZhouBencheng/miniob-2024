@@ -31,6 +31,80 @@ SelectStmt::~SelectStmt()
   }
 }
 
+RC SelectStmt::handle_from_clause(Db       *db, 
+  std::vector<InnerJoinSqlNode>            &inner_join_nodes,
+  BinderContext                            &binder_context, 
+  std::vector<Table *>                     &tables, 
+  std::unordered_map<std::string, Table *> &table_map,
+  std::vector<JoinTables>                  &join_tables)
+{
+  auto collect_and_check_table = [&](std::string &table_name) {
+    const char *table_name_cstr = table_name.c_str();
+    if (nullptr == table_name_cstr) {
+      LOG_WARN("invalid argument. table name is null");
+      return RC::INVALID_ARGUMENT;
+    }
+
+    Table *table = db->find_table(table_name_cstr);
+    if (nullptr == table) {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name_cstr);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    binder_context.add_table(table);
+    tables.push_back(table);
+    table_map.insert({table_name, table});
+    return RC::SUCCESS;
+  };
+
+
+  auto handle_one_relation = [&](std::string &table_name, vector<ConditionSqlNode> &on_conds, JoinTables &jt) {
+    RC rc = RC::SUCCESS;
+    rc = collect_and_check_table(table_name);
+    if (rc != RC::SUCCESS) { // 将当前表解析出表指针失败
+      return rc;
+    }
+
+    FilterStmt      *filter_stmt = nullptr;
+    ExpressionBinder expression_binder(binder_context);
+    if (!on_conds.empty()) {
+      rc = FilterStmt::create(db, nullptr, &table_map, expression_binder, on_conds.data(), static_cast<int>(on_conds.size()), filter_stmt);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("cannot construct filter stmt");
+        return rc;
+      }
+    }
+    jt.push_join_table(table_map[table_name], filter_stmt);
+    return RC::SUCCESS;
+  };
+
+  for (size_t i = 0; i < inner_join_nodes.size(); i++) {
+    InnerJoinSqlNode &inner_join_node = inner_join_nodes[i];
+    JoinTables jt;
+
+    vector<ConditionSqlNode> on_conds;
+    RC rc = handle_one_relation(inner_join_node.basic_relation, on_conds, jt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("handle basic relation failed. rc=%s", strrc(rc));
+      return rc;
+    }
+
+    vector<std::string>                   &join_relations = inner_join_node.join_relations;
+    vector<std::vector<ConditionSqlNode>> &conditions     = inner_join_node.conditions;
+    for (size_t j = 0; j < join_relations.size(); j++) {
+      rc = handle_one_relation(join_relations[j], conditions[j], jt);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("handle join relation failed. rc=%s", strrc(rc));
+        return rc;
+      }
+    }
+    conditions.clear();
+
+    join_tables.emplace_back(std::move(jt));
+  }
+
+  return RC::SUCCESS;
+}
+
 RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 {
   if (nullptr == db) {
@@ -43,23 +117,30 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   // collect tables in `from` statement
   vector<Table *>                tables;
   unordered_map<string, Table *> table_map;
-  for (size_t i = 0; i < select_sql.relations.size(); i++) {
-    const char *table_name = select_sql.relations[i].c_str();
-    if (nullptr == table_name) {
-      LOG_WARN("invalid argument. relation name is null. index=%d", i);
-      return RC::INVALID_ARGUMENT;
-    }
-
-    Table *table = db->find_table(table_name);
-    if (nullptr == table) {
-      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
-      return RC::SCHEMA_TABLE_NOT_EXIST;
-    }
-
-    binder_context.add_table(table);
-    tables.push_back(table);
-    table_map.insert({table_name, table});
+  vector<JoinTables>             join_tables;
+  RC rc = handle_from_clause(db, select_sql.relations, binder_context, tables, table_map, join_tables);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("handle from clause failed. rc=%s", strrc(rc));
+    return rc;
   }
+  
+  // for (size_t i = 0; i < select_sql.relations.size(); i++) {
+  //   const char *table_name = select_sql.relations[i].c_str();
+  //   if (nullptr == table_name) {
+  //     LOG_WARN("invalid argument. relation name is null. index=%d", i);
+  //     return RC::INVALID_ARGUMENT;
+  //   }
+
+  //   Table *table = db->find_table(table_name);
+  //   if (nullptr == table) {
+  //     LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+  //     return RC::SCHEMA_TABLE_NOT_EXIST;
+  //   }
+
+  //   binder_context.add_table(table);
+  //   tables.push_back(table);
+  //   table_map.insert({table_name, table});
+  // }
 
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
@@ -90,7 +171,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   // create filter statement in `where` statement
   FilterStmt *filter_stmt = nullptr;
-  RC          rc          = FilterStmt::create(db,
+  rc                      = FilterStmt::create(db,
       default_table,
       &table_map,
       expression_binder,
@@ -105,7 +186,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
 
-  select_stmt->tables_.swap(tables);
+  select_stmt->join_tables_.swap(join_tables);
   select_stmt->query_expressions_.swap(bound_expressions);
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->group_by_.swap(group_by_expressions);
