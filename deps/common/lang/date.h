@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "common/lang/string.h"
 #include "src/observer/common/rc.h"
 #include <iomanip>
 
@@ -13,6 +12,21 @@ namespace common {
 inline bool is_leap_year(int year)
 {
   return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+}
+
+inline bool is_valid_date(int year, int month, int day) {
+  int month_days[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  if (year < 1900 || year > 9999 ||
+      month < 1 || month > 12 ||
+      day < 1 || day > month_days[month - 1]) {
+      LOG_WARN("Invalid date: %d-%d-%d", year, month, day);
+    return false;
+  }
+  if (month == 2 && day == 29 && !is_leap_year(year)) {
+    LOG_WARN("Invalid date for the leap year: %d-%d-%d", year, month, day);
+    return false;
+  }
+  return true;
 }
 
 inline RC date_from_string(const string &str, int32_t *date)
@@ -25,15 +39,7 @@ inline RC date_from_string(const string &str, int32_t *date)
     return RC::INVALID_ARGUMENT;
   }
   // 以下部分判断非法日期
-  int month_days[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  if (year < 1900 || year > 9999 ||
-      month < 1 || month > 12 ||
-      day < 1 || day > month_days[month - 1]) {
-    LOG_WARN("Invalid date: %d-%d-%d", year, month, day);
-    return RC::INVALID_ARGUMENT;
-  }
-  if (month == 2 && day == 29 && !is_leap_year(year)) {
-    LOG_WARN("Invalid date for the leap year: %d-%d-%d", year, month, day);
+  if (!is_valid_date(year, month, day)) {
     return RC::INVALID_ARGUMENT;
   }
   *date = year * 10000 + month * 100 + day;

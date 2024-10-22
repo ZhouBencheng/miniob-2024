@@ -322,6 +322,10 @@ AttrType ArithmeticExpr::value_type() const
     return left_->value_type();
   }
 
+  if (left_->value_type() == AttrType::VECTORS || right_->value_type() == AttrType::VECTORS) {
+    return AttrType::VECTORS;
+  }
+
   if (left_->value_type() == AttrType::INTS && right_->value_type() == AttrType::INTS &&
       arithmetic_type_ != Type::DIV) {
     return AttrType::INTS;
@@ -619,4 +623,153 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
     rc = RC::INVALID_ARGUMENT;
   }
   return rc;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+UnboundVectorExpr::UnboundVectorExpr(const char *vector_func_name, Expression *left, Expression *right)
+    : vector_func_name_(vector_func_name), left_(left), right_(right)
+{}
+
+////////////////////////////////////////////////////////////////////////////////
+
+VectorExpr::VectorExpr(Type type, Expression *left, Expression *right)
+    : vector_func_type_(type), left_(left), right_(right)
+{}
+
+VectorExpr::VectorExpr(Type type, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right)
+    : vector_func_type_(type), left_(std::move(left)), right_(std::move(right))
+{}
+
+RC VectorExpr::type_from_string(const char *type_str, VectorExpr::Type &type)
+{
+  RC rc = RC::SUCCESS;
+  if (0 == strcasecmp(type_str, "l2_distance")) {
+    type = Type::L2_DISTANCE;
+  } else if (0 == strcasecmp(type_str, "cosine_distance")) {
+    type = Type::COSINE_DISTANCE;
+  } else if (0 == strcasecmp(type_str, "inner_product")) {
+    type = Type::INNER_PRODUCT;
+  } else {
+    rc = RC::INVALID_ARGUMENT;
+  }
+  return rc;
+}
+
+
+RC VectorExpr::get_value(const Tuple &tuple, Value &value) const
+{
+  RC rc = RC::SUCCESS;
+  if (!left_ || !right_) {
+    LOG_WARN("left or right expression is null");
+    return RC::INTERNAL;
+  }
+
+  Value left_value;
+  Value right_value;
+  Value real_left_value;  // 在parser阶段将向量解析为字符串，这里需要将字符串转换为向量
+  Value real_right_value;
+
+  rc = left_->get_value(tuple, left_value);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to get value of left expression in vector function. rc=%s", strrc(rc));
+    return rc;
+  }
+  if (left_value.attr_type() != AttrType::VECTORS) { // 对应ValueExpr，直接提取出来的Value可能是字符串类型
+    rc = Value::cast_to(left_value, AttrType::VECTORS, real_left_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to cast left value to vector. rc=%s", strrc(rc));
+      return rc;
+    }
+  } else {
+    real_left_value = left_value;
+  }
+
+  rc = right_->get_value(tuple, right_value);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to get value of right expression in vector function. rc=%s", strrc(rc));
+    return rc;
+  }
+  if (right_value.attr_type() != AttrType::VECTORS) {
+    rc = Value::cast_to(right_value, AttrType::VECTORS, real_right_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to cast right value to vector. rc=%s", strrc(rc));
+      return rc;
+    }
+  } else {
+    real_right_value = right_value;
+  }
+
+  switch (vector_func_type_) {
+    case Type::L2_DISTANCE: {
+      rc = calc_l2_distance(real_left_value, real_right_value, value);
+    } break;
+    case Type::COSINE_DISTANCE: {
+      rc = calc_cosine_distance(real_left_value, real_right_value, value);
+    } break;
+    case Type::INNER_PRODUCT: {
+      rc = calc_inner_product(real_left_value, real_right_value, value);
+    } break;
+    default: {
+      rc = RC::INTERNAL;
+      LOG_WARN("unsupported vector function type. %d", vector_func_type_);
+    } break;
+  }
+  return rc;
+}
+
+RC VectorExpr::calc_l2_distance(const Value &left, const Value &right, Value &value)
+{
+  Value sub_value; // 获取向量差值
+  sub_value.set_type(AttrType::VECTORS);
+  Value::subtract(left, right, sub_value);
+
+  Value inner_product_value; // 存储内积运算结果
+  VectorExpr::calc_inner_product(sub_value, sub_value, inner_product_value); // 自己和自己的内积运算
+  
+  Value::square(inner_product_value, value); // 计算根号
+  
+  return RC::SUCCESS;
+}
+
+RC VectorExpr::calc_cosine_distance(const Value &left, const Value &right, Value &value)
+{
+  Value numerator; // 存储分子
+  VectorExpr::calc_inner_product(left, right, numerator); // 分子为内积运算
+  
+  Value left_inner_product_value; // 存储左向量内积运算结果
+  VectorExpr::calc_inner_product(left, left, left_inner_product_value); // 左向量和自己的内积运算
+  
+  Value left_value; // 存储左向量根号运算结果
+  Value::square(left_inner_product_value, left_value); // 计算根号
+
+  Value right_inner_product_value; // 存储右向量内积运算结果
+  VectorExpr::calc_inner_product(right, right, right_inner_product_value); // 右向量和自己的内积运算
+  
+  Value right_value; // 存储右向量根号运算结果
+  Value::square(right_inner_product_value, right_value); // 计算根号
+
+  Value denominator; // 存储分母
+  denominator.set_type(AttrType::FLOATS);
+  Value::multiply(left_value, right_value, denominator); // 分母为两向量根号的乘积
+
+  Value fraction_value; // 存储分数运算结果
+  fraction_value.set_type(AttrType::FLOATS);
+  Value::divide(numerator, denominator, fraction_value); // 分子除以分母
+
+  float result = 1 - fraction_value.get_float();
+  value.set_value(Value(result));
+  
+  return RC::SUCCESS;
+}
+
+RC VectorExpr::calc_inner_product(const Value &left, const Value &right, Value &value)
+{
+  Value multiply_value;
+  multiply_value.set_type(AttrType::VECTORS);
+  Value::multiply(left, right, multiply_value); // 计算向量乘积
+  
+  Value::vector_aggregation(multiply_value, value); // 获取乘积的聚合值
+  
+  return RC::SUCCESS;
 }

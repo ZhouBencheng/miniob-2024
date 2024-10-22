@@ -9,6 +9,7 @@ FILE(GLOB_RECURSE ALL_SRC  *.cpp)
 #STATIC，静态库
 ADD_LIBRARY(common STATIC ${ALL_SRC}
         lang/date.h
+        lang/vector_utils.h
 )
 
 # 编译静态库时，自动会把同名的动态库给删除， 因此需要临时设置一下

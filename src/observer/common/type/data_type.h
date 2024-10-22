@@ -14,8 +14,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/memory.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
-#include "common/rc.h"
-#include "common/type/attr_type.h"
+#include "src/observer/common/rc.h"
+#include "src/observer/common/type/attr_type.h"
 
 class Value;
 
@@ -75,6 +75,16 @@ public:
    * @brief 计算 -val，并将结果保存到 result 中
    */
   virtual RC negative(const Value &val, Value &result) const { return RC::UNSUPPORTED; }
+
+  /**
+   * @brief 计算 vector 类型的聚合值，并将结果保存到 result 中。其他数据类型都不支持
+   */
+  virtual RC vector_aggregation(const Value &val, Value &result) const { return RC::UNSUPPORTED; }
+
+  /**
+   * @brief 计算根号值，当前只支持int类型和float类型
+   */
+  virtual RC square(const Value &val, Value &result) const { return RC::UNSUPPORTED; }
 
   /**
    * @brief 将 val 转换为 type 类型，并将结果保存到 result 中

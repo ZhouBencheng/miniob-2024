@@ -344,15 +344,22 @@ RC Table::update_record(Record &record, const Value &value, const FieldMeta *fie
 
 RC Table::set_value_to_record(char *record_data, const Value &value, const FieldMeta *field)
 {
+  RC rc = RC::SUCCESS;
   size_t       copy_len = field->len();
   const size_t data_len = value.length();
   if (field->type() == AttrType::CHARS) {
     if (copy_len > data_len) {
       copy_len = data_len + 1;
     }
+  } else if (field->type() == AttrType::VECTORS) {
+    if(copy_len != data_len) {
+      LOG_WARN("field_len and data_len mismatch. field_len=%d, data_len=%d", copy_len, data_len);
+      copy_len = copy_len < data_len ? copy_len : data_len;
+      rc = RC::INVALID_ARGUMENT;
+    }
   }
   memcpy(record_data + field->offset(), value.data(), copy_len);
-  return RC::SUCCESS;
+  return rc;
 }
 
 RC Table::init_record_handler(const char *base_dir)

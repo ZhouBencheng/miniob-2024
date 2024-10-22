@@ -98,6 +98,9 @@ SUM                                     RETURN_TOKEN(SUM);
 MAX                                     RETURN_TOKEN(MAX);
 MIN                                     RETURN_TOKEN(MIN);
 AVG                                     RETURN_TOKEN(AVG);
+L2_DISTANCE                             RETURN_TOKEN(L2_DISTANCE);
+COSINE_DISTANCE                         RETURN_TOKEN(COSINE_DISTANCE);
+INNER_PRODUCT                           RETURN_TOKEN(INNER_PRODUCT);
 CALC                                    RETURN_TOKEN(CALC);
 FROM                                    RETURN_TOKEN(FROM);
 WHERE                                   RETURN_TOKEN(WHERE);
@@ -146,6 +149,17 @@ FORMAT                                  RETURN_TOKEN(FORMAT);
 
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
+
+\[[^\]]*\]                              {
+                                          int   len = strlen(yytext);
+                                          char *data = (char *)malloc(len + 3);
+                                          strncpy(data + 1, yytext, len);
+                                          data[0] = '\"';
+                                          data[len + 1] = '\"';
+                                          data[len + 2] = '\0';
+                                          yylval->string = data;
+                                          RETURN_TOKEN(SSS);
+                                        }
 
 .                                       LOG_DEBUG("Unknown character [%c]",yytext[0]); return yytext[0];
 %%

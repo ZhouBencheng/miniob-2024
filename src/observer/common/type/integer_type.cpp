@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/type/integer_type.h"
 #include "common/value.h"
+#include <complex>
 
 int IntegerType::compare(const Value &left, const Value &right) const
 {
@@ -49,6 +50,13 @@ RC IntegerType::multiply(const Value &left, const Value &right, Value &result) c
 RC IntegerType::negative(const Value &val, Value &result) const
 {
   result.set_int(-val.get_int());
+  return RC::SUCCESS;
+}
+
+RC IntegerType::square(const Value &val, Value &result) const
+{
+  int val_int = val.get_int();
+  result.set_float(std::sqrt(val_int));
   return RC::SUCCESS;
 }
 

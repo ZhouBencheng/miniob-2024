@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/memory.h"
 #include "common/type/attr_type.h"
 #include "common/type/data_type.h"
+#include "common/type/vector_type.h"
 
 /**
  * @brief 属性的值
@@ -35,6 +36,8 @@ public:
   friend class BooleanType;
   friend class CharType;
   friend class DateType;
+  friend class VectorType;
+  friend class NullType;
 
   Value() = default;
 
@@ -85,6 +88,16 @@ public:
     return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
 
+  static RC vector_aggregation(const Value &value, Value &result)
+  {
+    return DataType::type_instance(value.attr_type())->vector_aggregation(value, result);
+  }
+
+  static RC square(const Value &value, Value &result)
+  {
+    return DataType::type_instance(value.attr_type())->square(value, result);
+  }
+
   void set_type(AttrType type) { this->attr_type_ = type; }
   void set_data(char *data, int length);
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
@@ -105,19 +118,21 @@ public:
    * 获取对应的值
    * 如果当前的类型与期望获取的类型不符，就会执行转换操作
    */
-  int    get_int() const;
-  float  get_float() const;
-  string get_string() const;
-  bool   get_boolean() const;
-  int    get_date() const;
+  int         get_int() const;
+  float       get_float() const;
+  string      get_string() const;
+  bool        get_boolean() const;
+  int         get_date() const;
+  const char *get_vector() const;
+  bool        is_int_vector() const;
 
 private:
   void set_int(int val);
   void set_float(float val);
   void set_string(const char *s, int len = 0);
   void set_string_from_other(const Value &other);
-  void set_date(int val); /// 重载设置日期的两种方法，分别接受整型和字符串类型
-  void set_date(const char *s, int len = 0);
+  void set_date(int val);
+  void set_vector(const char *data, int len); 
 
 private:
   AttrType attr_type_ = AttrType::UNDEFINED;

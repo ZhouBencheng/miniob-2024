@@ -89,7 +89,15 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
     } break;
 
     case ExprType::AGGREGATION: {
-      ASSERT(false, "shouldn't be here");
+      ASSERT(false, "You are trying to bind aggregation function. It shouldn't be here");
+    } break;
+
+    case ExprType::UNBOUND_VECTOR_FUNC: {
+      return bind_unbound_vector_expression(expr, bound_expressions);
+    } break;
+
+    case ExprType::VECTOR_FUNC: {
+      ASSERT(false, "You are trying to bind vector function. It shouldn't be here");
     } break;
 
     default: {
@@ -458,5 +466,67 @@ RC ExpressionBinder::bind_aggregate_expression(
   }
 
   bound_expressions.emplace_back(std::move(aggregate_expr));
+  return RC::SUCCESS;
+}
+
+RC ExpressionBinder::bind_unbound_vector_expression(
+    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+{
+  if (nullptr == expr) {
+    return RC::SUCCESS;
+  }
+
+  auto unbound_vector_expr = static_cast<UnboundVectorExpr *>(expr.get());
+
+  // 转化向量表达式名称为具体类型
+  const char *vector_name = unbound_vector_expr->vector_func_name();
+  VectorExpr::Type vector_type;
+  RC rc = VectorExpr::type_from_string(vector_name, vector_type);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("invalid vector function name: %s", vector_name);
+    return rc;
+  }
+
+  // 绑定左右子表达式
+  unique_ptr<Expression> &left_expr = unbound_vector_expr->left();
+  unique_ptr<Expression> &right_expr = unbound_vector_expr->right();
+  vector<unique_ptr<Expression>> child_bound_expressions;
+
+  // 绑定左子表达式
+  rc = bind_expression(left_expr, child_bound_expressions);
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
+
+  if (child_bound_expressions.size() != 1) {
+    LOG_WARN("invalid left children number of vector expression: %d", child_bound_expressions.size());
+    return RC::INVALID_ARGUMENT;
+  }
+
+  if (child_bound_expressions[0].get() != left_expr.get()) {
+    left_expr.reset(child_bound_expressions[0].release());
+  }
+
+  // 绑定右子表达式
+  child_bound_expressions.clear();
+  rc = bind_expression(right_expr, child_bound_expressions);
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
+
+  if (child_bound_expressions.size() != 1) {
+    LOG_WARN("invalid right children number of vector expression: %d", child_bound_expressions.size());
+    return RC::INVALID_ARGUMENT;
+  }
+
+  if (child_bound_expressions[0].get() != right_expr.get()) {
+    right_expr.reset(child_bound_expressions[0].release());
+  }
+
+  // 构造绑定好的VectorExpr对象
+  auto vector_expr = make_unique<VectorExpr>(vector_type, std::move(left_expr), std::move(right_expr));
+  vector_expr->set_name(unbound_vector_expr->name());
+
+  bound_expressions.emplace_back(std::move(vector_expr));
   return RC::SUCCESS;
 }

@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/char_type.h"
 #include "common/value.h"
 #include "common/lang/date.h"
+#include "common/lang/vector_utils.h"
 
 int CharType::compare(const Value &left, const Value &right) const
 {
@@ -45,6 +46,17 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       result.set_date(date);
       LOG_DEBUG("cast char to date. char=%s, date=%d", val.get_string().c_str(), date);
     } break;
+    case AttrType::VECTORS:{
+      char *data = nullptr;
+      int   len  = 0;
+      RC rc = common::vector_from_string(val.value_.pointer_value_, 
+                  &data, &len);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to convert string to vector. s=%s", val.value_.pointer_value_);
+        return rc;
+      }
+      result.set_vector(data, len);
+    } break;
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;
@@ -55,6 +67,8 @@ int CharType::cast_cost(AttrType type)
   if (type == AttrType::CHARS) {
     return 0;
   } else if (type == AttrType::DATES) {
+    return 1;
+  } else if (type == AttrType::VECTORS) {
     return 1;
   }
   return INT32_MAX;
