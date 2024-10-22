@@ -104,39 +104,6 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   filter_unit = new FilterUnit;
 
-  // if (condition.left_is_attr) {
-  //   Table           *table = nullptr;
-  //   const FieldMeta *field = nullptr;
-  //   rc                     = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
-  //   if (rc != RC::SUCCESS) {
-  //     LOG_WARN("cannot find attr");
-  //     return rc;
-  //   }
-  //   FilterObj filter_obj;
-  //   filter_obj.init_attr(Field(table, field));
-  //   filter_unit->set_left(filter_obj);
-  // } else {
-  //   FilterObj filter_obj;
-  //   filter_obj.init_value(condition.left_value);
-  //   filter_unit->set_left(filter_obj);
-  // }
-
-  // if (condition.right_is_attr) {
-  //   Table           *table = nullptr;
-  //   const FieldMeta *field = nullptr;
-  //   rc                     = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
-  //   if (rc != RC::SUCCESS) {
-  //     LOG_WARN("cannot find attr");
-  //     return rc;
-  //   }
-  //   FilterObj filter_obj;
-  //   filter_obj.init_attr(Field(table, field));
-  //   filter_unit->set_right(filter_obj);
-  // } else {
-  //   FilterObj filter_obj;
-  //   filter_obj.init_value(condition.right_value);
-  //   filter_unit->set_right(filter_obj);
-  // }
   vector<unique_ptr<Expression>> bound_expressions;
   RC rc1 = expression_binder.bind_expression(condition.left_expression, bound_expressions);
   RC rc2 = expression_binder.bind_expression(condition.right_expression, bound_expressions);

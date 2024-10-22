@@ -31,7 +31,7 @@ RC Rewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
   RC rc = RC::SUCCESS;
 
   change_made = false;
-  for (std::unique_ptr<RewriteRule> &rule : rewrite_rules_) {
+  for (std::unique_ptr<RewriteRule> &rule : rewrite_rules_) { // 对当前算子套用所有重写规则，用change_mode表示是否有重写发生
     bool sub_change_made = false;
 
     rc = rule->rewrite(oper, sub_change_made);
@@ -40,7 +40,7 @@ RC Rewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
       return rc;
     }
 
-    if (sub_change_made && !change_made) {
+    if (sub_change_made && !change_made) { // 在当前oper被更改一次后将change_mode保持为true
       change_made = true;
     }
   }

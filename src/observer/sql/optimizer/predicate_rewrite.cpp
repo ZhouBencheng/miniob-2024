@@ -15,9 +15,10 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/predicate_rewrite.h"
 #include "sql/operator/logical_operator.h"
 
+// 用于对谓词算子的父节点使用的重写规则
 RC PredicateRewriteRule::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
 {
-  std::vector<std::unique_ptr<LogicalOperator>> &child_opers = oper->children();
+  std::vector<std::unique_ptr<LogicalOperator>> &child_opers = oper->children(); // 谓词重写规则只对拥有一个子节点的逻辑算子进行重写
   if (child_opers.size() != 1) {
     return RC::SUCCESS;
   }
@@ -32,6 +33,9 @@ RC PredicateRewriteRule::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &c
     return RC::SUCCESS;
   }
 
+  // 在logical_plan_generator中根据filter_stmt生成predicate算子过程中，一般最后用一个ConjunciotnExpr连接所有ComparisonExpr
+  // 并使用这个ConjunctionExpr构造谓词算子
+  // 而这里针对的情况是当where语句中的谓词不是一个不等式，而是一个确定的value，例如where 1，条件始终为真并且构造出ValueExpr 
   std::unique_ptr<Expression> &expr = expressions.front();
   if (expr->type() != ExprType::VALUE) {
     return RC::SUCCESS;

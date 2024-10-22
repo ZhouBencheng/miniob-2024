@@ -68,11 +68,6 @@ enum CompOp
  */
 struct ConditionSqlNode
 {
-  // 将Condition中的左值和右值都替换为Expression类型
-  // int left_is_attr;              ///< TRUE if left-hand side is an attribute
-  //                                ///< 1时，操作符左边是属性名，0时，是属性值
-  // Value          left_value;     ///< left-hand side value if left_is_attr = FALSE
-  // RelAttrSqlNode left_attr;      ///< left-hand side attribute
   ConditionSqlNode()                                   = default;
   ConditionSqlNode(const ConditionSqlNode&)            = delete ; // 禁止拷贝
   ConditionSqlNode& operator=(const ConditionSqlNode&) = delete ; // 禁止拷贝赋值
@@ -80,12 +75,22 @@ struct ConditionSqlNode
   ConditionSqlNode& operator=(ConditionSqlNode&&)      = default; // 允许移动赋值
   
   std::unique_ptr<Expression> left_expression;
-  CompOp         comp;           ///< comparison operator
-  // int            right_is_attr;  ///< TRUE if right-hand side is an attribute
-  //                                ///< 1时，操作符右边是属性名，0时，是属性值
-  // RelAttrSqlNode right_attr;     ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
-  // Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
+  CompOp                      comp;           ///< comparison operator
   std::unique_ptr<Expression> right_expression;
+};
+
+/**
+ * @brief 表示一个inner join构成的表
+ * @ingroup SQLParser
+ * @details 在innner join节点中，basic_relation是基准表，即inner join语句块中最左边的表
+ * join_relations是参与连接的表，conditions是连接条件
+ * 一个inner join可能会对应多个不等式，一个on语句中的不等式构成一个vector<ConditionSqlNode>
+ * conditions中一个on条件的索引和join_relations的索引是一一对应的
+ */
+struct InnerJoinSqlNode {
+  string                                      basic_relation;
+  std::vector<std::string>                    join_relations;
+  std::vector<std::vector<ConditionSqlNode> > conditions;
 };
 
 /**
@@ -102,7 +107,7 @@ struct ConditionSqlNode
 struct SelectSqlNode
 {
   std::vector<std::unique_ptr<Expression>> expressions;  ///< 查询的表达式 SELECT clause
-  std::vector<std::string>                 relations;    ///< 查询的表 FROM clause
+  std::vector<InnerJoinSqlNode>            relations;    ///< 查询的表 FROM clause
   std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件 WHERE clause
   std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
 };

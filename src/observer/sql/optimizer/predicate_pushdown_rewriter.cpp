@@ -112,7 +112,7 @@ RC PredicatePushdownRewriter::get_exprs_can_pushdown(
       }
 
       if (!*iter) {
-        child_exprs.erase(iter);
+        child_exprs.erase(iter); // 当conjunction中的子算子可以被下推至table_get中时，当前iter指向的子算子就已经失效
       } else {
         ++iter;
       }
