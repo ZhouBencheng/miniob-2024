@@ -18,12 +18,14 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/expression_rewriter.h"
 #include "sql/optimizer/predicate_pushdown_rewriter.h"
 #include "sql/optimizer/predicate_rewrite.h"
+#include "sql/optimizer/predicate_merge_rewriter.h"
 
 Rewriter::Rewriter()
 {
   rewrite_rules_.emplace_back(new ExpressionRewriter);
   rewrite_rules_.emplace_back(new PredicateRewriteRule);
   rewrite_rules_.emplace_back(new PredicatePushdownRewriter);
+  rewrite_rules_.emplace_back(new PredicateMergeRewriter);
 }
 
 RC Rewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
@@ -31,6 +33,7 @@ RC Rewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
   RC rc = RC::SUCCESS;
 
   change_made = false;
+  LOG_DEBUG("there exist %d rewrite rules", rewrite_rules_.size());
   for (std::unique_ptr<RewriteRule> &rule : rewrite_rules_) { // 对当前算子套用所有重写规则，用change_mode表示是否有重写发生
     bool sub_change_made = false;
 
