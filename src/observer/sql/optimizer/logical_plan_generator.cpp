@@ -99,23 +99,81 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
   // 由last_oper二级指针构建逻辑算子的根算子
   unique_ptr<LogicalOperator> *last_oper = nullptr;
 
-  unique_ptr<LogicalOperator> table_oper(nullptr);
-  last_oper = &table_oper;
+  unique_ptr<LogicalOperator> outer_table_oper(nullptr);
+  last_oper = &outer_table_oper;
 
-  // 构建FROM子句产生的JOIN逻辑算子
-  const std::vector<Table *> &tables = select_stmt->tables();
-  for (Table *table : tables) {
+  // 构建FROM子句
+  const std::vector<SelectStmt::JoinTable> &join_tables = select_stmt->join_tables();
 
+  auto handle_one_join_table = [this](std::unique_ptr<LogicalOperator> &prev_oper, Table *table, FilterStmt *filter_stmt) -> RC {
     unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
-    if (table_oper == nullptr) {
-      table_oper = std::move(table_get_oper);
+    unique_ptr<LogicalOperator> predicate_oper;
+
+    if (filter_stmt != nullptr) {
+      RC rc = create_plan(filter_stmt, predicate_oper);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+        return rc;
+      }
+    }
+
+    if (!prev_oper) {
+      if (predicate_oper) {
+        static_cast<TableGetLogicalOperator*>(table_get_oper.get())->set_predicates(std::move(predicate_oper->expressions()));
+      }
+      prev_oper = std::move(table_get_oper);
     } else {
-      JoinLogicalOperator *join_oper = new JoinLogicalOperator;
-      join_oper->add_child(std::move(table_oper));
+      unique_ptr<JoinLogicalOperator> join_oper = make_unique<JoinLogicalOperator>();
+      join_oper->add_child(std::move(prev_oper));
       join_oper->add_child(std::move(table_get_oper));
-      table_oper = unique_ptr<LogicalOperator>(join_oper);
+      if (predicate_oper) {
+        predicate_oper->add_child(std::move(join_oper));
+        prev_oper = std::move(predicate_oper);
+      } else {
+        prev_oper = std::move(join_oper);
+      }
+    }
+    return RC::SUCCESS;
+  };
+
+  for (auto &join_table : join_tables) {
+    unique_ptr<LogicalOperator> prev_oper = nullptr;
+    auto &tables   = join_table.join_tables();
+    auto &on_conds = join_table.on_conds();
+    if (tables.size() != on_conds.size()) {
+      LOG_WARN("the size of tables and on_conds are not equal. tables.size=%zu, on_conds.size=%zu", tables.size(), on_conds.size());
+      return RC::INVALID_ARGUMENT;
+    }
+
+    for (size_t i = 0; i < tables.size(); i++) {
+      RC rc = handle_one_join_table(prev_oper, tables[i], on_conds[i]);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to handle one join table. rc=%s", strrc(rc));
+        return rc;
+      }
+    }
+
+    if (outer_table_oper == nullptr) {
+      outer_table_oper = std::move(prev_oper);
+    } else {
+      unique_ptr<JoinLogicalOperator> join_oper = make_unique<JoinLogicalOperator>();
+      join_oper->add_child(std::move(outer_table_oper));
+      join_oper->add_child(std::move(prev_oper));
+      outer_table_oper = std::move(join_oper);
     }
   }
+  // for (Table *table : tables) {
+
+  //   unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
+  //   if (table_oper == nullptr) {
+  //     table_oper = std::move(table_get_oper);
+  //   } else {
+  //     JoinLogicalOperator *join_oper = new JoinLogicalOperator;
+  //     join_oper->add_child(std::move(table_oper));
+  //     join_oper->add_child(std::move(table_get_oper));
+  //     table_oper = unique_ptr<LogicalOperator>(join_oper);
+  //   }
+  // }
 
   // 构建WHERE子句产生的过滤谓词逻辑算子
   unique_ptr<LogicalOperator> predicate_oper; // 使用filter_stmt构造的谓词逻辑计划

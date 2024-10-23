@@ -506,7 +506,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 
-join_node_list:
+join_node_list: // 改规则用于解析多个逗号分隔的join语句
     /* empty */
     {
       $$ = nullptr;
@@ -518,10 +518,10 @@ join_node_list:
       } else {
         $$ = new std::vector<InnerJoinSqlNode>;
       }
-      $$->emplace_back(*$2);
+      $$->emplace_back(std::move(*$2));
     }
 
-join_node:
+join_node: // 改规则用于解析单个连续的inner join语句
     ID join_list 
     {
       if ($2 != nullptr) {
@@ -535,7 +535,7 @@ join_node:
       free($1);
     }
 
-join_list:
+join_list: // 改规则用于解析单个inner join中的内连接表和对应的on条件
     /* empty */
     {
       $$ =  nullptr;
@@ -565,8 +565,7 @@ select_stmt:        /*  select 语句的语法解析树*/
         $$->selection.relations.swap(*$5);
         delete $5;
       }
-      $$->selection.relations.emplace_back(*$4);
-      delete $4;
+      $$->selection.relations.emplace_back(std::move(*$4));
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
 
       if ($6 != nullptr) {

@@ -38,11 +38,11 @@ public:
    * @brief 表示一个join语句，存储ParseSqlNode中的一个InnerJoinSqlNode
    * @ingroup Statement
    */
-  class JoinTables {
+  class JoinTable { // 一个JoinTables对象对应一个InnerJoinSqlNode节点的解析结果
   public:
-    JoinTables() = default;
-    ~JoinTables() = default;
-    JoinTables(JoinTables &&other) { // 移动构造
+    JoinTable() = default;
+    ~JoinTable() = default;
+    JoinTable(JoinTable &&other) { // 移动构造
       join_tables_.swap(other.join_tables_);
       on_conds_.swap(other.on_conds_);
     }
@@ -67,23 +67,34 @@ public:
   static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt);
 
 public:
-  const std::vector<JoinTables> &join_tables() const { return join_tables_; }
+  const std::vector<JoinTable> &join_tables() const { return join_tables_; }
   FilterStmt                    *filter_stmt() const { return filter_stmt_; }
 
   std::vector<std::unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
   std::vector<std::unique_ptr<Expression>> &group_by() { return group_by_; }
 
 private:
+  /**
+   * @brief 处理from子句
+   * @ingroup Statement
+   * @details 处理from子句中vector<InnerJoinSqlNode>，将解析出的内连接关系转换为JoinTables对象
+   * @param db               数据库指针
+   * @param inner_join_nodes parser解析出的内连接关系
+   * @param binder_context   (out)绑定上下文
+   * @param tables           (out)表指针数组
+   * @param table_map        (out)表名和表指针的映射
+   * @param join_tables      (out)存储JoinTables对象的数组
+   */
   static RC handle_from_clause(Db            *db, 
     std::vector<InnerJoinSqlNode>            &inner_join_nodes,
     BinderContext                            &binder_context, 
     std::vector<Table *>                     &tables, 
     std::unordered_map<std::string, Table *> &table_map,
-    std::vector<JoinTables>                  &join_tables);
+    std::vector<JoinTable>                  &join_tables);
 
 private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
-  std::vector<JoinTables>                  join_tables_;
+  std::vector<JoinTable>                  join_tables_; // JoinTables类型数组存储外连接关系
   FilterStmt                              *filter_stmt_ = nullptr;
   std::vector<std::unique_ptr<Expression>> group_by_;
 };

@@ -36,9 +36,9 @@ RC SelectStmt::handle_from_clause(Db       *db,
   BinderContext                            &binder_context, 
   std::vector<Table *>                     &tables, 
   std::unordered_map<std::string, Table *> &table_map,
-  std::vector<JoinTables>                  &join_tables)
+  std::vector<JoinTable>                  &join_tables)
 {
-  auto collect_and_check_table = [&](std::string &table_name) {
+  auto collect_and_check_table = [&](std::string &table_name) { // lamda表达式，用于解析一个表名到表指针
     const char *table_name_cstr = table_name.c_str();
     if (nullptr == table_name_cstr) {
       LOG_WARN("invalid argument. table name is null");
@@ -56,8 +56,10 @@ RC SelectStmt::handle_from_clause(Db       *db,
     return RC::SUCCESS;
   };
 
-
-  auto handle_one_relation = [&](std::string &table_name, vector<ConditionSqlNode> &on_conds, JoinTables &jt) {
+  /**
+   * @brief 处理一个InnerJoinSqlNode中的一个表及其对应的on条件，并将解析出的表指针和on条件对应的FilterStmt对象存储到JoinTables对象中
+   */
+  auto handle_one_relation = [&](std::string &table_name, vector<ConditionSqlNode> &on_conds, JoinTable &jt) {
     RC rc = RC::SUCCESS;
     rc = collect_and_check_table(table_name);
     if (rc != RC::SUCCESS) { // 将当前表解析出表指针失败
@@ -66,7 +68,9 @@ RC SelectStmt::handle_from_clause(Db       *db,
 
     FilterStmt      *filter_stmt = nullptr;
     ExpressionBinder expression_binder(binder_context);
+    // 对于InnerJoinSqlNode中的basic_relation表，其on_conds为空，因此在JoinTables中只需要推入(Table *, nullptr)即可，FilterStmt对象为空
     if (!on_conds.empty()) {
+      // 对于InnerJoinSqlNode中的join_relations表，其on_conds不为空，因此在JoinTables中需要推入(Table *, FilterStmt *)
       rc = FilterStmt::create(db, nullptr, &table_map, expression_binder, on_conds.data(), static_cast<int>(on_conds.size()), filter_stmt);
       if (rc != RC::SUCCESS) {
         LOG_WARN("cannot construct filter stmt");
@@ -77,9 +81,10 @@ RC SelectStmt::handle_from_clause(Db       *db,
     return RC::SUCCESS;
   };
 
+  // 遍历外连接关系，处理每个InnerJoinSqlNode
   for (size_t i = 0; i < inner_join_nodes.size(); i++) {
     InnerJoinSqlNode &inner_join_node = inner_join_nodes[i];
-    JoinTables jt;
+    JoinTable jt;
 
     vector<ConditionSqlNode> on_conds;
     RC rc = handle_one_relation(inner_join_node.basic_relation, on_conds, jt);
@@ -88,6 +93,7 @@ RC SelectStmt::handle_from_clause(Db       *db,
       return rc;
     }
 
+    // 遍历内连接关系，处理每个join_relations表及其对应的on条件
     vector<std::string>                   &join_relations = inner_join_node.join_relations;
     vector<std::vector<ConditionSqlNode>> &conditions     = inner_join_node.conditions;
     for (size_t j = 0; j < join_relations.size(); j++) {
@@ -117,30 +123,12 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   // collect tables in `from` statement
   vector<Table *>                tables;
   unordered_map<string, Table *> table_map;
-  vector<JoinTables>             join_tables;
+  vector<JoinTable>              join_tables;
   RC rc = handle_from_clause(db, select_sql.relations, binder_context, tables, table_map, join_tables);
   if (rc != RC::SUCCESS) {
     LOG_WARN("handle from clause failed. rc=%s", strrc(rc));
     return rc;
   }
-  
-  // for (size_t i = 0; i < select_sql.relations.size(); i++) {
-  //   const char *table_name = select_sql.relations[i].c_str();
-  //   if (nullptr == table_name) {
-  //     LOG_WARN("invalid argument. relation name is null. index=%d", i);
-  //     return RC::INVALID_ARGUMENT;
-  //   }
-
-  //   Table *table = db->find_table(table_name);
-  //   if (nullptr == table) {
-  //     LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
-  //     return RC::SCHEMA_TABLE_NOT_EXIST;
-  //   }
-
-  //   binder_context.add_table(table);
-  //   tables.push_back(table);
-  //   table_map.insert({table_name, table});
-  // }
 
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
