@@ -1523,7 +1523,7 @@ YY_RULE_SETUP
 {
                                           int   len = strlen(yytext);
                                           char *data = (char *)malloc(len + 3);
-                                          strncpy(data + 1, yytext, len);
+                                          memcpy(data + 1, yytext, len);
                                           data[0] = '\"';
                                           data[len + 1] = '\"';
                                           data[len + 2] = '\0';

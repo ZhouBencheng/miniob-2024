@@ -33,14 +33,16 @@ Table *BinderContext::find_table(const char *table_name) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void wildcard_fields(Table *table, vector<unique_ptr<Expression>> &expressions)
+static void wildcard_fields(Table *table, vector<unique_ptr<Expression>> &expressions, bool is_single_table)
 {
   const TableMeta &table_meta = table->table_meta();
   const int        field_num  = table_meta.field_num();
   for (int i = table_meta.sys_field_num(); i < field_num; i++) {
     Field      field(table, table_meta.field(i));
     FieldExpr *field_expr = new FieldExpr(field);
-    field_expr->set_name(field.field_name());
+    // 注意：如果当前是单表查询，则直接使用字段名，否则使用表名.字段名的形式
+    string field_name = is_single_table ? field.field_name() : string(table->name()) + "." + string(field.field_name());
+    field_expr->set_name(field_name);
     expressions.emplace_back(field_expr);
   }
 }
@@ -132,9 +134,9 @@ RC ExpressionBinder::bind_star_expression(
     const vector<Table *> &all_tables = context_.query_tables();
     tables_to_wildcard.insert(tables_to_wildcard.end(), all_tables.begin(), all_tables.end());
   }
-
+  bool is_single_table = context_.query_tables().size() == 1;
   for (Table *table : tables_to_wildcard) {
-    wildcard_fields(table, bound_expressions);
+    wildcard_fields(table, bound_expressions, is_single_table);
   }
 
   return RC::SUCCESS;
@@ -169,7 +171,8 @@ RC ExpressionBinder::bind_unbound_field_expression(
   }
 
   if (0 == strcmp(field_name, "*")) {
-    wildcard_fields(table, bound_expressions);
+    bool is_single_table = context_.query_tables().size() == 1;
+    wildcard_fields(table, bound_expressions, is_single_table);
   } else {
     const FieldMeta *field_meta = table->table_meta().field(field_name);
     if (nullptr == field_meta) {

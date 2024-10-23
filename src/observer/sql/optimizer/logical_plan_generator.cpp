@@ -162,18 +162,6 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
       outer_table_oper = std::move(join_oper);
     }
   }
-  // for (Table *table : tables) {
-
-  //   unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
-  //   if (table_oper == nullptr) {
-  //     table_oper = std::move(table_get_oper);
-  //   } else {
-  //     JoinLogicalOperator *join_oper = new JoinLogicalOperator;
-  //     join_oper->add_child(std::move(table_oper));
-  //     join_oper->add_child(std::move(table_get_oper));
-  //     table_oper = unique_ptr<LogicalOperator>(join_oper);
-  //   }
-  // }
 
   // 构建WHERE子句产生的过滤谓词逻辑算子
   unique_ptr<LogicalOperator> predicate_oper; // 使用filter_stmt构造的谓词逻辑计划
