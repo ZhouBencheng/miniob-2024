@@ -70,6 +70,8 @@ int CharType::cast_cost(AttrType type)
     return 1;
   } else if (type == AttrType::VECTORS) {
     return 1;
+  } else if (type == AttrType::FLOATS) {
+    return 2;
   }
   return INT32_MAX;
 }

@@ -117,7 +117,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
       }
     }
 
-    if (!prev_oper) {
+    if (prev_oper == nullptr) {
       if (predicate_oper) {
         static_cast<TableGetLogicalOperator*>(table_get_oper.get())->set_predicates(std::move(predicate_oper->expressions()));
       }

@@ -76,6 +76,11 @@ RC FloatType::cast_to(const Value &val, AttrType type, Value &result) const
     case AttrType::FLOATS:
       result.set_float(val.get_float());
       break;
+    case AttrType::CHARS: {
+      stringstream ss;
+      ss << val.get_float();
+      result.set_string(ss.str().c_str());
+    } break;
     default:
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
   }
@@ -89,6 +94,8 @@ int FloatType::cast_cost(AttrType type)
       return 2;
     case AttrType::FLOATS:
       return 0;
+    case AttrType::CHARS:
+      return 1;
     default:
       return INT32_MAX;
   }
