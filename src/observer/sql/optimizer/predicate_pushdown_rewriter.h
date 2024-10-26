@@ -32,6 +32,6 @@ public:
 
 private:
   RC get_exprs_can_pushdown(
-      std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &pushdown_exprs);
+      std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &pushdown_exprs, LogicalOperatorType child_type);
   bool is_empty_predicate(std::unique_ptr<Expression> &expr);
 };

@@ -88,6 +88,8 @@ int IntegerType::cast_cost(AttrType type)
       return 0;
     case AttrType::FLOATS:
       return 1;
+    case AttrType::CHARS:
+      return 1;
     default:
       return INT32_MAX;
   }
