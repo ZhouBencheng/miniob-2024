@@ -27,5 +27,7 @@ public:
   PredicateLogicalOperator(std::unique_ptr<Expression> expression);
   virtual ~PredicateLogicalOperator() = default;
 
+  void set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs);
+
   LogicalOperatorType type() const override { return LogicalOperatorType::PREDICATE; }
 };

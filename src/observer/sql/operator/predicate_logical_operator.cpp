@@ -18,3 +18,12 @@ PredicateLogicalOperator::PredicateLogicalOperator(std::unique_ptr<Expression> e
 {
   expressions_.emplace_back(std::move(expression));
 }
+
+void PredicateLogicalOperator::set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs)
+{
+  for (auto &expr : exprs) {
+    if (expr != nullptr) {
+      expressions_.emplace_back(std::move(expr));
+    }
+  }
+}

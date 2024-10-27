@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "sql/optimizer/rewrite_rule.h"
+#include "sql/operator/logical_operator.h"
 #include <vector>
 
 /**
@@ -34,4 +35,5 @@ private:
   RC get_exprs_can_pushdown(
       std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &pushdown_exprs, LogicalOperatorType child_type);
   bool is_empty_predicate(std::unique_ptr<Expression> &expr);
+  bool is_join_with_table_get(std::unique_ptr<LogicalOperator> &oper);
 };

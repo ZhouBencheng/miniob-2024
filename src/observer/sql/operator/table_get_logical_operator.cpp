@@ -20,5 +20,9 @@ TableGetLogicalOperator::TableGetLogicalOperator(Table *table, ReadWriteMode mod
 
 void TableGetLogicalOperator::set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs)
 {
-  predicates_ = std::move(exprs);
+  for (auto &expr : exprs) {
+    if (expr != nullptr) {
+      predicates_.emplace_back(std::move(expr));
+    }
+  }
 }

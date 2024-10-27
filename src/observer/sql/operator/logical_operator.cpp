@@ -35,3 +35,10 @@ bool LogicalOperator::can_generate_vectorized_operator(const LogicalOperatorType
     return bool_ret;
 }
 
+void LogicalOperator::set_expressions(std::vector<std::unique_ptr<Expression>> &&exprs) {
+  for (auto &expr : exprs) {
+    if (expr != nullptr) {
+      expressions_.emplace_back(std::move(expr));
+    }
+  }
+}

@@ -29,5 +29,16 @@ public:
 
   LogicalOperatorType type() const override { return LogicalOperatorType::JOIN; }
 
+  std::vector<std::unique_ptr<Expression>> &predicates() { return predicates_; }
+
+  void set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs) {
+    for (auto &expr : exprs) {
+      if (expr != nullptr) {
+        predicates_.emplace_back(std::move(expr));
+      }
+    }
+  }
+
 private:
+  std::vector<std::unique_ptr<Expression>> predicates_;
 };

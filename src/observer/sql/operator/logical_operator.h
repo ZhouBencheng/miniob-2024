@@ -60,6 +60,7 @@ public:
   auto        children() -> std::vector<std::unique_ptr<LogicalOperator>>        &{ return children_; }
   auto        expressions() -> std::vector<std::unique_ptr<Expression>>        &{ return expressions_; }
   static bool can_generate_vectorized_operator(const LogicalOperatorType &type);
+  void        set_expressions(std::vector<std::unique_ptr<Expression>> &&exprs);
 
 protected:
   std::vector<std::unique_ptr<LogicalOperator>> children_;  ///< 子算子

@@ -124,6 +124,17 @@ public:
    */
   virtual RC eval(Chunk &chunk, std::vector<uint8_t> &select) { return RC::UNIMPLEMENTED; }
 
+  /**
+   * @brief 获取表达式所属的表指针
+   * @details 该方法对于属性表达式，和只有一边是属性表达式的比较表达式有用
+   */
+  virtual RC get_table_ptr(const Table **table_ptr) const { return RC::UNIMPLEMENTED; }
+
+  /**
+   * @brief 深拷贝
+   */
+  virtual std::unique_ptr<Expression> clone() const { return nullptr; }
+
 protected:
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
@@ -161,6 +172,8 @@ public:
   RC get_value(const Tuple &tuple, Value &value) const override { return RC::UNIMPLEMENTED; }  // 不需要实现
 
   const char *table_name() const { return table_name_.c_str(); }
+
+  std::unique_ptr<Expression> clone() const override { return std::make_unique<StarExpr>(table_name_.c_str()); }
 
 private:
   std::string table_name_;
@@ -220,6 +233,10 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override;
 
+  RC get_table_ptr(const Table **table_ptr) const override;
+
+  std::unique_ptr<Expression> clone() const override { return std::make_unique<FieldExpr>(field_); }
+
 private:
   Field field_;
 };
@@ -253,6 +270,7 @@ public:
   void         get_value(Value &value) const { value = value_; }
   const Value &get_value() const { return value_; }
 
+  std::unique_ptr<Expression> clone() const override { return std::make_unique<ValueExpr>(value_); }
 private:
   Value value_;
 };
@@ -276,6 +294,8 @@ public:
   AttrType value_type() const override { return cast_type_; }
 
   std::unique_ptr<Expression> &child() { return child_; }
+
+  std::unique_ptr<Expression> clone() const override { return std::make_unique<CastExpr>(child_->clone(), cast_type_); }
 
 private:
   RC cast(const Value &value, Value &cast_value) const;
@@ -324,6 +344,10 @@ public:
   template <typename T>
   RC compare_column(const Column &left, const Column &right, std::vector<uint8_t> &result) const;
 
+  RC get_table_ptr(const Table **table_ptr) const override;
+
+  std::unique_ptr<Expression> clone() const override { return std::make_unique<ComparisonExpr>(comp_, left_->clone(), right_->clone()); }
+
 private:
   CompOp                      comp_;
   std::unique_ptr<Expression> left_;
@@ -356,6 +380,14 @@ public:
   Type conjunction_type() const { return conjunction_type_; }
 
   std::vector<std::unique_ptr<Expression>> &children() { return children_; }
+
+  std::unique_ptr<Expression> clone() const override {
+    std::vector<std::unique_ptr<Expression>> cloned_children;
+    for (auto &child : children_) {
+      cloned_children.emplace_back(child->clone());
+    }
+    return std::make_unique<ConjunctionExpr>(conjunction_type_, std::move(cloned_children));
+  }
 
 private:
   Type                                     conjunction_type_;
@@ -405,6 +437,8 @@ public:
 
   std::unique_ptr<Expression> &left() { return left_; }
   std::unique_ptr<Expression> &right() { return right_; }
+
+  std::unique_ptr<Expression> clone() const override { return std::make_unique<ArithmeticExpr>(arithmetic_type_, left_->clone(), right_->clone()); }
 
 private:
   RC calc_value(const Value &left_value, const Value &right_value, Value &value) const;
@@ -478,6 +512,8 @@ public:
   const std::unique_ptr<Expression> &child() const { return child_; }
 
   std::unique_ptr<Aggregator> create_aggregator() const;
+
+  std::unique_ptr<Expression> clone() const override { return std::make_unique<AggregateExpr>(aggregate_type_, child_->clone()); }
 
 public:
   static RC type_from_string(const char *type_str, Type &type);

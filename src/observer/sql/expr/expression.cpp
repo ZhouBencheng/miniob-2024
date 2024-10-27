@@ -49,6 +49,12 @@ RC FieldExpr::get_column(Chunk &chunk, Column &column)
   return RC::SUCCESS;
 }
 
+RC FieldExpr::get_table_ptr(const Table **table_ptr) const
+{
+  *table_ptr = field_.table();
+  return RC::SUCCESS;
+}
+
 bool ValueExpr::equal(const Expression &other) const
 {
   if (this == &other) {
@@ -261,6 +267,23 @@ RC ComparisonExpr::compare_column(const Column &left, const Column &right, std::
     compare_result<T, false, false>((T *)left.data(), (T *)right.data(), left.count(), result, comp_);
   }
   return rc;
+}
+
+RC ComparisonExpr::get_table_ptr(const Table **table_ptr) const
+{
+  if (left_->type() == ExprType::FIELD && right_->type() == ExprType::VALUE) {
+    *table_ptr = static_cast<FieldExpr *>(left_.get())->field().table();
+    return RC::SUCCESS;
+  } else if (left_->type() == ExprType::VALUE && right_->type() == ExprType::FIELD) {
+    *table_ptr = static_cast<FieldExpr *>(right_.get())->field().table();
+    return RC::SUCCESS;
+  } else if (left_->type() == ExprType::VALUE && right_->type() == ExprType::VALUE) {
+    *table_ptr = nullptr;
+    return RC::SUCCESS;
+  } else {
+    LOG_WARN("unsupported operation to get table pointer in comparison expression. left type=%d, right type=%d", left_->type(), right_->type());
+    return RC::INVALID_ARGUMENT;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -38,25 +38,30 @@ RC PredicatePushdownRewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bo
   // auto table_get_oper = static_cast<TableGetLogicalOperator *>(child_oper.get());
 
   std::vector<std::unique_ptr<Expression>> &predicate_oper_exprs = oper->expressions();
-  if (predicate_oper_exprs.size() != 1) {
-    return rc;
-  }
 
-  std::unique_ptr<Expression>             &predicate_expr = predicate_oper_exprs.front();
   std::vector<std::unique_ptr<Expression>> pushdown_exprs;
-  rc = get_exprs_can_pushdown(predicate_expr, pushdown_exprs, child_oper->type());
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get exprs can pushdown. rc=%s", strrc(rc));
-    return rc;
+  for (auto &predicate_expr : predicate_oper_exprs) {
+    rc = get_exprs_can_pushdown(predicate_expr, pushdown_exprs, child_oper->type());
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get exprs can pushdown. rc=%s", strrc(rc));
+      return rc;
+    }
   }
 
-  if (!predicate_expr || is_empty_predicate(predicate_expr)) {
+  bool all_empty = true;
+  for (auto &predicate_expr : predicate_oper_exprs) {
+    if (predicate_expr != nullptr || !is_empty_predicate(predicate_expr)) {
+      all_empty = false;
+    }
+  }
+
+  if (all_empty) {
     // 所有的表达式都下推到了下层算子
     // 这个predicate operator其实就可以不要了。但是这里没办法删除，弄一个空的表达式吧
     LOG_TRACE("all expressions of predicate operator were pushdown to table get operator, then make a fake one");
-
     Value value((bool)true);
-    predicate_expr = std::unique_ptr<Expression>(new ValueExpr(value));
+    predicate_oper_exprs.clear();
+    predicate_oper_exprs.emplace_back(std::unique_ptr<Expression>(new ValueExpr(value)));
   }
 
   if (!pushdown_exprs.empty()) {
@@ -65,11 +70,29 @@ RC PredicatePushdownRewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bo
       auto table_get_oper = static_cast<TableGetLogicalOperator *>(child_oper.get());
       table_get_oper->set_predicates(std::move(pushdown_exprs));
     } else if (child_oper->type() == LogicalOperatorType::JOIN) {
-      auto join_oper = static_cast<JoinLogicalOperator *>(child_oper.get());
-      join_oper->set_predicates(std::move(pushdown_exprs));
+      if (is_join_with_table_get(child_oper)) {
+        auto join_oper = static_cast<JoinLogicalOperator *>(child_oper.get());
+        join_oper->set_predicates(std::move(pushdown_exprs));
+      } else {
+        // 如果join算子的两个子算子都不是table get算子，那么谓词需要归还到predicate算子中
+        oper->set_expressions(std::move(pushdown_exprs));
+      }
     }
   }
   return rc;
+}
+
+// 当predicate算子的子算子为join时，需要判断这个join算子的子算子中是否包含table get
+// 因为在两个子算子都不是table get算子的join算子中，谓词将不知道下推到哪个子算子中
+bool PredicatePushdownRewriter::is_join_with_table_get(std::unique_ptr<LogicalOperator> &oper)
+{
+  if (oper->type() != LogicalOperatorType::JOIN) {
+    return false;
+  }
+  auto join_oper = static_cast<JoinLogicalOperator *>(oper.get());
+  std::unique_ptr<LogicalOperator> &left_child = join_oper->children()[0];
+  std::unique_ptr<LogicalOperator> &right_child = join_oper->children()[1];
+  return left_child->type() == LogicalOperatorType::TABLE_GET || right_child->type() == LogicalOperatorType::TABLE_GET;
 }
 
 bool PredicatePushdownRewriter::is_empty_predicate(std::unique_ptr<Expression> &expr)
@@ -99,6 +122,11 @@ RC PredicatePushdownRewriter::get_exprs_can_pushdown(
     std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &pushdown_exprs, LogicalOperatorType child_type)
 {
   RC rc = RC::SUCCESS;
+
+  if (expr == nullptr) {
+    return rc;
+  }
+
   if (expr->type() == ExprType::CONJUNCTION) {
     ConjunctionExpr *conjunction_expr = static_cast<ConjunctionExpr *>(expr.get());
     // 或 操作的比较，太复杂，现在不考虑
