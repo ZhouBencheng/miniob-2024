@@ -58,11 +58,11 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       result.set_vector(data, len);
     } break;
     case AttrType::FLOATS: {
-      float val_float = val.get_float();
+      float val_float = std::stof(val.value_.pointer_value_);
       result.set_float(val_float);
     } break;
     case AttrType::INTS: {
-      int val_int = val.get_int();
+      int val_int = std::stoi(val.value_.pointer_value_);
       result.set_int(val_int);
     } break;
     default: return RC::UNIMPLEMENTED;
