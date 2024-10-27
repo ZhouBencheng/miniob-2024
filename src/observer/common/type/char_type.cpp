@@ -57,6 +57,14 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       }
       result.set_vector(data, len);
     } break;
+    case AttrType::FLOATS: {
+      float val_float = val.get_float();
+      result.set_float(val_float);
+    } break;
+    case AttrType::INTS: {
+      int val_int = val.get_int();
+      result.set_int(val_int);
+    } break;
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;
@@ -72,9 +80,9 @@ int CharType::cast_cost(AttrType type)
     case AttrType::VECTORS:
       return 1;
     case AttrType::FLOATS:
-      return 2;
+      return 1;
     case AttrType::INTS:
-      return 2;
+      return 1;
     default:
       return INT32_MAX;
   }
