@@ -23,14 +23,15 @@ const static Json::StaticString FIELD_NAME("name");
 const static Json::StaticString FIELD_TYPE("type");
 const static Json::StaticString FIELD_OFFSET("offset");
 const static Json::StaticString FIELD_LEN("len");
+const static Json::StaticString FIELD_NULLABLE("nullable");
 const static Json::StaticString FIELD_VISIBLE("visible");
 const static Json::StaticString FIELD_FIELD_ID("FIELD_id");
 
 FieldMeta::FieldMeta() : attr_type_(AttrType::UNDEFINED), attr_offset_(-1), attr_len_(0), visible_(false), field_id_(0) {}
 
-FieldMeta::FieldMeta(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool visible, int field_id)
+FieldMeta::FieldMeta(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool nullable, bool visible, int field_id)
 {
-  [[maybe_unused]] RC rc = this->init(name, attr_type, attr_offset, attr_len, visible, field_id);
+  [[maybe_unused]] RC rc = this->init(name, attr_type, attr_offset, attr_len, nullable, visible, field_id);
   ASSERT(rc == RC::SUCCESS, "failed to init field meta. rc=%s", strrc(rc));
 }
 
@@ -43,7 +44,7 @@ FieldMeta::FieldMeta(const char *name, AttrType attr_type, int attr_offset, int 
  * @param visible 属性是否可见，事务属性不可见
  * @param field_id 属性标识ID，仅在普通属性和事务属性内部区分
  */
-RC FieldMeta::init(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool visible, int field_id)
+RC FieldMeta::init(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool nullable, bool visible, int field_id)
 {
   if (common::is_blank(name)) {
     LOG_WARN("Name cannot be empty");
@@ -60,6 +61,7 @@ RC FieldMeta::init(const char *name, AttrType attr_type, int attr_offset, int at
   attr_type_   = attr_type;
   attr_len_    = attr_len;
   attr_offset_ = attr_offset;
+  nullable_    = nullable;
   visible_     = visible;
   field_id_ = field_id;
 
@@ -102,11 +104,12 @@ RC FieldMeta::from_json(const Json::Value &json_value, FieldMeta &field)
     return RC::INTERNAL;
   }
 
-  const Json::Value &name_value    = json_value[FIELD_NAME];
-  const Json::Value &type_value    = json_value[FIELD_TYPE];
-  const Json::Value &offset_value  = json_value[FIELD_OFFSET];
-  const Json::Value &len_value     = json_value[FIELD_LEN];
-  const Json::Value &visible_value = json_value[FIELD_VISIBLE];
+  const Json::Value &name_value     = json_value[FIELD_NAME];
+  const Json::Value &type_value     = json_value[FIELD_TYPE];
+  const Json::Value &offset_value   = json_value[FIELD_OFFSET];
+  const Json::Value &len_value      = json_value[FIELD_LEN];
+  const Json::Value &nullable_value = json_value[FIELD_NULLABLE];
+  const Json::Value &visible_value  = json_value[FIELD_VISIBLE];
   const Json::Value &field_id_value = json_value[FIELD_FIELD_ID];
 
   if (!name_value.isString()) {
@@ -144,7 +147,8 @@ RC FieldMeta::from_json(const Json::Value &json_value, FieldMeta &field)
   const char *name    = name_value.asCString();
   int         offset  = offset_value.asInt();
   int         len     = len_value.asInt();
+  bool        nullable = nullable_value.asBool();
   bool        visible = visible_value.asBool();
   int         field_id  = field_id_value.asInt();
-  return field.init(name, type, offset, len, visible, field_id);
+  return field.init(name, type, offset, len, nullable, visible, field_id);
 }

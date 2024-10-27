@@ -136,6 +136,9 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
         GE
         NE
         NOT
+        IS
+        NULLABLE
+        NULL_T
         LIKE
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
@@ -158,6 +161,7 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
   char *                                     string;
   int                                        number;
   float                                      floats;
+  bool                                       boolean;
 }
 
 %token <number> NUMBER
@@ -168,6 +172,7 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
 %type <number>              type
+%type <boolean>             nullable
 %type <condition>           condition
 %type <join_node>           join_node
 %type <join_node>           join_list
@@ -371,11 +376,12 @@ attr_def_list:
     ;
     
 attr_def:
-    ID type LBRACE number RBRACE 
+    ID type LBRACE number RBRACE nullable
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
+      $$->nullable = $6;
       if ($2 == static_cast<int>(AttrType::VECTORS)) { // 向量的字节长度为元素个数4倍
         $$->length = $4 * 4 + 1;
       } else {
@@ -383,15 +389,26 @@ attr_def:
       }
       free($1);
     }
-    | ID type
+    | ID type nullable
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = 4;
+      $$->nullable = $3;
       free($1);
     }
     ;
+
+nullable:
+    /* empty */
+    { $$ = true; } // 默认不规定null属性则准许空值
+    | NULLABLE 
+    { $$ = true; }
+    | NOT NULL_T
+    { $$ = false; }
+    ;
+
 number:
     NUMBER {$$ = $1;}
     ;
