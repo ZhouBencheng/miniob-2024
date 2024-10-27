@@ -58,12 +58,10 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       result.set_vector(data, len);
     } break;
     case AttrType::FLOATS: {
-      float val_float = val.get_float();
-      result.set_float(val_float);
+      result.set_float(val.get_float());
     } break;
     case AttrType::INTS: {
-      int val_int = val.get_int();
-      result.set_int(val_int);
+      result.set_int(val.get_int());
     } break;
     default: return RC::UNIMPLEMENTED;
   }
