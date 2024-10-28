@@ -129,30 +129,36 @@ ComparisonExpr::~ComparisonExpr() {}
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
   RC  rc         = RC::SUCCESS;
-  int cmp_result = left.compare(right);
-  result         = false;
   // null值和任何值比较都是返回false
-  if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS) {
+  if ((left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS) &&
+      (comp_ != IS_COMP && comp_ != IS_NOT_COMP)) {
     result = false;
     return rc;
   }
+  result         = false;
   switch (comp_) {
     case EQUAL_TO: {
+      int cmp_result = left.compare(right);
       result = (0 == cmp_result);
     } break;
     case LESS_EQUAL: {
+      int cmp_result = left.compare(right);
       result = (cmp_result <= 0);
     } break;
     case NOT_EQUAL: {
+      int cmp_result = left.compare(right);
       result = (cmp_result != 0);
     } break;
     case LESS_THAN: {
+      int cmp_result = left.compare(right);
       result = (cmp_result < 0);
     } break;
     case GREAT_EQUAL: {
+      int cmp_result = left.compare(right);
       result = (cmp_result >= 0);
     } break;
     case GREAT_THAN: {
+      int cmp_result = left.compare(right);
       result = (cmp_result > 0);
     } break;
     case LIKE_COMP: {
@@ -162,6 +168,13 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case NOT_LIKE_COMP: {
       LOG_DEBUG("NOT_LIKE_COMP");
       result = !left.like(right);
+    } break;
+    case IS_COMP: {
+      result = (left.attr_type() == AttrType::NULLS && right.attr_type() == AttrType::NULLS);
+    } break;
+    case IS_NOT_COMP: {
+      result = ((left.attr_type() != AttrType::NULLS && right.attr_type() == AttrType::NULLS) ||
+                (left.attr_type() == AttrType::NULLS && right.attr_type() != AttrType::NULLS));
     } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);

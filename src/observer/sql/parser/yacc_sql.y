@@ -402,7 +402,7 @@ attr_def:
 
 nullable:
     /* empty */
-    { $$ = true; } // 默认不规定null属性则准许空值
+    { $$ = false; } // 默认不规定null属性不准许空值
     | NULLABLE 
     { $$ = true; }
     | NOT NULL_T
@@ -752,14 +752,16 @@ condition:
     ;
 
 comp_op:
-      EQ { $$ = EQUAL_TO; }
-    | LT { $$ = LESS_THAN; }
-    | GT { $$ = GREAT_THAN; }
-    | LE { $$ = LESS_EQUAL; }
-    | GE { $$ = GREAT_EQUAL; }
-    | NE { $$ = NOT_EQUAL; }
-    | LIKE { $$ = LIKE_COMP; }
+    EQ         { $$ = EQUAL_TO;      }
+    | LT       { $$ = LESS_THAN;     }
+    | GT       { $$ = GREAT_THAN;    }
+    | LE       { $$ = LESS_EQUAL;    }
+    | GE       { $$ = GREAT_EQUAL;   }
+    | NE       { $$ = NOT_EQUAL;     }
+    | LIKE     { $$ = LIKE_COMP;     }
     | NOT LIKE { $$ = NOT_LIKE_COMP; }
+    | IS       { $$ = IS_COMP;      }
+    | IS NOT   { $$ = IS_NOT_COMP;     }
     ;
 
 // your code here
