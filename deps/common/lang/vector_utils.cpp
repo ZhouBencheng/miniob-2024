@@ -39,9 +39,11 @@ RC vector_from_string(char *str, char **data, int *len)
         if (is_int) {
             int *q = (int *)data_temp;
             q[*len] = atoi(p);
+            LOG_INFO("int value in parsing vector: %d", q[*len]);
         } else {
             float *q = (float *)data_temp;
             q[*len] = atof(p);
+            LOG_INFO("float value in parsing vector: %f", q[*len]);
         }
         p = strtok(NULL, ", ");
         (*len)++;
@@ -49,7 +51,7 @@ RC vector_from_string(char *str, char **data, int *len)
     bool *q = (bool *)data_temp;
     q[*len * 4] = is_int; // 使用最后一个字节存储bool值，表示是否为整数
     *data = data_temp;
-    *len = *len * 4 + 1;  // 最后一个字节存储bool是否为null，倒数第二个字节存储是否为整数，因此需要加2
+    *len = *len * 4 + 1;  // 最后一个字节存储bool是否为null，倒数第二个字节存储是否为整数
     return RC::SUCCESS;
 }
 

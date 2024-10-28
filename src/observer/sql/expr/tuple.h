@@ -206,7 +206,7 @@ public:
       cell.set_type(field_meta->type());
     }
  
-    cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len() - 1);
     
     return RC::SUCCESS;
   }
