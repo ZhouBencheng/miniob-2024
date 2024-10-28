@@ -54,6 +54,7 @@ public:
    */
   RC create(Db *db, int32_t table_id, const char *path, const char *name, const char *base_dir,
       span<const AttrInfoSqlNode> attributes, StorageFormat storage_format);
+  
 
   /**
    * 打开一个表
@@ -86,6 +87,10 @@ public:
 
   // TODO refactor
   RC create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name);
+
+  RC create_index(Trx *trx, const std::vector<const FieldMeta*> field_meta, const char *index_name);
+
+
 
   RC get_record_scanner(RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode);
 

@@ -796,6 +796,109 @@ RC BplusTreeHandler::sync()
 
 RC BplusTreeHandler::create(LogHandler &log_handler,
                             BufferPoolManager &bpm,
+                            const char *file_name,  
+                            const std::vector<int> &field_ids, 
+                            const std::vector<const FieldMeta*> &fields, 
+                            int internal_max_size /* = -1*/, int leaf_max_size /* = -1 */)
+{
+  RC rc = bpm.create_file(file_name);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("Failed to create file. file name=%s, rc=%d:%s", file_name, rc, strrc(rc));
+    return rc;
+  }
+  LOG_INFO("Successfully create index file:%s", file_name);
+
+  DiskBufferPool *bp = nullptr;
+  rc = bpm.open_file(log_handler, file_name, bp);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("Failed to open file. file name=%s, rc=%d:%s", file_name, rc, strrc(rc));
+    return rc;
+  }
+  LOG_INFO("Successfully open index file %s.", file_name);
+
+  Frame *header_frame;
+  rc = bp->allocate_page(&header_frame);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to allocate header page for bplus tree. rc=%d:%s", rc, strrc(rc));
+    bpm.close_file(file_name);
+    return rc;
+  }
+
+  if (header_frame->page_num() != FIRST_INDEX_PAGE) {
+    LOG_WARN("header page num should be %d but got %d. is it a new file : %s",
+             FIRST_INDEX_PAGE, header_frame->page_num(), file_name);
+    bpm.close_file(file_name);
+    return RC::INTERNAL;
+  }
+
+  int attr_length = 0;
+  for (const FieldMeta *field_meta : fields) {
+    attr_length += field_meta->len();
+  }
+  if (internal_max_size < 0) {
+    internal_max_size = calc_internal_page_capacity(attr_length);
+  }
+  if (leaf_max_size < 0) {
+    leaf_max_size = calc_leaf_page_capacity(attr_length);
+  }
+
+  log_handler_      = &log_handler;
+  disk_buffer_pool_ = bp;
+
+  RC rc = RC::SUCCESS;
+
+  BplusTreeMiniTransaction mtr(*this, &rc);
+
+  Frame *header_frame = nullptr;
+
+  rc = mtr.latch_memo().allocate_page(header_frame);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to allocate header page for bplus tree. rc=%d:%s", rc, strrc(rc));
+    return rc;
+  }
+
+
+  char *pdata = header_frame->data();
+  IndexFileHeader *file_header = (IndexFileHeader *)pdata;
+
+  file_header->key_length = attr_length + sizeof(RID);
+  file_header->internal_max_size = internal_max_size;
+  file_header->leaf_max_size = leaf_max_size;
+  file_header->root_page = BP_INVALID_PAGE_NUM;
+  file_header->attr_num = fields.size();
+  for (int i = 0; i < fields.size(); i++) {
+    file_header->field_id[i] = field_ids[i];
+    file_header->attr_type[i] = fields[i]->type();
+    file_header->attr_offset[i] = fields[i]->offset();
+    file_header->attr_length[i] = fields[i]->len();
+  }
+
+  header_frame->mark_dirty();
+
+  disk_buffer_pool_ = bp;
+
+  memcpy(&file_header_, pdata, sizeof(file_header_));
+  header_dirty_ = false;
+  bp->unpin_page(header_frame);
+
+  mem_pool_item_ = make_unique<common::MemPoolItem>("b+tree");
+  if (mem_pool_item_->init(file_header->key_length) < 0) {
+    LOG_WARN("Failed to init memory pool for index %s");
+    close();
+    return RC::NOMEM;
+  }
+
+  this->sync();
+
+  LOG_INFO("Successfully create index %s", file_name);
+  return RC::SUCCESS;
+}
+
+
+
+
+RC BplusTreeHandler::create(LogHandler &log_handler,
+                            BufferPoolManager &bpm,
                             const char *file_name, 
                             AttrType attr_type, 
                             int attr_length, 

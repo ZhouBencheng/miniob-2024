@@ -56,7 +56,11 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
     return rc;
   }
 
+
+
   sql_event->set_sql_node(std::move(sql_node));
+
+
 
   return RC::SUCCESS;
 }

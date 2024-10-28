@@ -30,6 +30,9 @@ See the Mulan PSL v2 for more details. */
 #include "storage/index/latch_memo.h"
 #include "storage/index/bplus_tree_log.h"
 
+#define MAX_INDEX_FIELD_NUM 16
+
+
 class BplusTreeHandler;
 class BplusTreeMiniTransaction;
 
@@ -176,17 +179,24 @@ struct IndexFileHeader
   PageNum  root_page;          ///< 根节点在磁盘中的页号
   int32_t  internal_max_size;  ///< 内部节点最大的键值对数
   int32_t  leaf_max_size;      ///< 叶子节点最大的键值对数
-  int32_t  attr_length;        ///< 键值的长度
-  int32_t  key_length;         ///< attr length + sizeof(RID)
-  AttrType attr_type;          ///< 键值的类型
 
-  const string to_string() const
+  int32_t  key_length;         ///< attr length + sizeof(RID)
+
+  int32_t attr_num;           ///< 索引列数量
+
+  int32_t field_id[MAX_INDEX_FIELD_NUM];
+  int32_t attr_length[MAX_INDEX_FIELD_NUM];       ///< 键值的长度
+  int32_t attr_offset[MAX_INDEX_FIELD_NUM];       ///< 键值在record中的offset  
+  AttrType attr_type[MAX_INDEX_FIELD_NUM];        ///< 键值的类型
+
+
+  const std::string to_string()
   {
-    stringstream ss;
+    std::stringstream ss;
 
     ss << "attr_length:" << attr_length << ","
        << "key_length:" << key_length << ","
-       << "attr_type:" << attr_type_to_string(attr_type) << ","
+       << "attr_type:" << attr_type << ","
        << "root_page:" << root_page << ","
        << "internal_max_size:" << internal_max_size << ","
        << "leaf_max_size:" << leaf_max_size << ";";
@@ -463,6 +473,15 @@ public:
       int internal_max_size = -1, int leaf_max_size = -1);
   RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, AttrType attr_type, int attr_length,
       int internal_max_size = -1, int leaf_max_size = -1);
+
+  RC create(
+            LogHandler &log_handler, BufferPoolManager &bpm,
+            const char *file_name, 
+            const std::vector<int> &field_ids,
+            const std::vector<const FieldMeta*> &fields,
+            int internal_max_size = -1, 
+            int leaf_max_size = -1);
+
 
   /**
    * @brief 打开一个B+树

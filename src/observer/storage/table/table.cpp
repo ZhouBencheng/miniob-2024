@@ -399,6 +399,59 @@ RC Table::get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadWriteMode m
   return rc;
 }
 
+RC Table::create_index(Trx *trx, const std::vector<const FieldMeta*> field_metas, const char *index_name){
+
+  IndexMeta new_index_meta;
+  RC rc = new_index_meta.init(index_name, field_metas);
+   if (rc != RC::SUCCESS) {
+    std::string field_names = field_metas[0]->name();
+    for (int i = 0; i < field_metas.size(); i++) {
+      field_names += ", ";
+      field_names += field_metas[i]->name();
+    }
+    LOG_INFO("Failed to init IndexMeta in table:%s, index_name:%s, field_name:%s", 
+             name(), index_name, field_names.c_str());
+    return rc;
+  }
+
+  // 确定索引列在表中所有列的排序
+  std::vector<int> field_ids; // 属性在表中列的位置
+  for (size_t i = 0; i < field_metas.size(); i++) {
+    const FieldMeta *field_meta = field_metas[i];
+    int field_id = 0;
+    for (FieldMeta field : *table_meta_.field_metas()) {
+      if (0 == strcmp(field.name(), field_meta->name())) {
+        field_ids.emplace_back(field_id);
+        break;
+      }
+      field_id++;
+    }
+  }
+  if (field_ids.size() != field_metas.size()) {
+    rc = RC::VARIABLE_NOT_VALID;
+    LOG_ERROR("Failed to find column_id for all index_fields, column_id size:%d, index_field size:%d", 
+                field_ids.size(), field_metas.size());
+    return rc;
+  }
+
+
+  BplusTreeIndex *index = new BplusTreeIndex();
+  std::string index_file = table_index_file(base_dir_.c_str(), name(), index_name);
+
+  rc = index->create(index_file.c_str(), new_index_meta, field_ids, field_metas);
+
+    if (rc != RC::SUCCESS) {
+    delete index;
+    LOG_ERROR("Failed to create bplus tree index. file name=%s, rc=%d:%s", index_file.c_str(), rc, strrc(rc));
+    return rc;
+  }
+
+
+  
+
+
+}
+
 RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name)
 {
   if (common::is_blank(index_name) || nullptr == field_meta) {

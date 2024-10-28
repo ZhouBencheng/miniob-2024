@@ -19,28 +19,59 @@ See the Mulan PSL v2 for more details. */
 
 BplusTreeIndex::~BplusTreeIndex() noexcept { close(); }
 
-RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
+// RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
+// {
+//   if (inited_) {
+//     LOG_WARN("Failed to create index due to the index has been created before. file_name:%s, index:%s, field:%s",
+//         file_name, index_meta.name(), index_meta.field());
+//     return RC::RECORD_OPENNED;
+//   }
+
+//   Index::init(index_meta, field_meta);
+
+//   BufferPoolManager &bpm = table->db()->buffer_pool_manager();
+//   RC rc = index_handler_.create(table->db()->log_handler(), bpm, file_name, field_meta.type(), field_meta.len());
+//   if (RC::SUCCESS != rc) {
+//     LOG_WARN("Failed to create index_handler, file_name:%s, index:%s, field:%s, rc:%s",
+//         file_name, index_meta.name(), index_meta.field(), strrc(rc));
+//     return rc;
+//   }
+
+//   inited_ = true;
+//   table_  = table;
+//   LOG_INFO("Successfully create index, file_name:%s, index:%s, field:%s",
+//     file_name, index_meta.name(), index_meta.field());
+//   return RC::SUCCESS;
+// }
+
+RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, 
+              const std::vector<int> &field_ids, const std::vector<const FieldMeta*> &field_metas)
 {
   if (inited_) {
     LOG_WARN("Failed to create index due to the index has been created before. file_name:%s, index:%s, field:%s",
-        file_name, index_meta.name(), index_meta.field());
+        file_name,
+        index_meta.name(),
+        index_meta.fields());
     return RC::RECORD_OPENNED;
   }
 
-  Index::init(index_meta, field_meta);
-
+  Index::init(index_meta, field_metas);
   BufferPoolManager &bpm = table->db()->buffer_pool_manager();
-  RC rc = index_handler_.create(table->db()->log_handler(), bpm, file_name, field_meta.type(), field_meta.len());
+
+  RC rc = index_handler_.create(table->db()->log_handler(), bpm, file_name, field_ids, field_metas);
+  // RC rc = index_handler_.create(file_name, field_ids, field_metas);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to create index_handler, file_name:%s, index:%s, field:%s, rc:%s",
-        file_name, index_meta.name(), index_meta.field(), strrc(rc));
+        file_name,
+        index_meta.name(),
+        index_meta.fields(),
+        strrc(rc));
     return rc;
   }
 
   inited_ = true;
-  table_  = table;
-  LOG_INFO("Successfully create index, file_name:%s, index:%s, field:%s",
-    file_name, index_meta.name(), index_meta.field());
+  LOG_INFO(
+      "Successfully create index, file_name:%s, index:%s, field:%s", file_name, index_meta.name(), index_meta.field());
   return RC::SUCCESS;
 }
 
@@ -48,7 +79,7 @@ RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &in
 {
   if (inited_) {
     LOG_WARN("Failed to open index due to the index has been initedd before. file_name:%s, index:%s, field:%s",
-        file_name, index_meta.name(), index_meta.field());
+        file_name, index_meta.name(), index_meta.fields());
     return RC::RECORD_OPENNED;
   }
 
@@ -58,21 +89,21 @@ RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &in
   RC rc = index_handler_.open(table->db()->log_handler(), bpm, file_name);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to open index_handler, file_name:%s, index:%s, field:%s, rc:%s",
-        file_name, index_meta.name(), index_meta.field(), strrc(rc));
+        file_name, index_meta.name(), index_meta.fields(), strrc(rc));
     return rc;
   }
 
   inited_ = true;
   table_  = table;
   LOG_INFO("Successfully open index, file_name:%s, index:%s, field:%s",
-    file_name, index_meta.name(), index_meta.field());
+    file_name, index_meta.name(), index_meta.fields());
   return RC::SUCCESS;
 }
 
 RC BplusTreeIndex::close()
 {
   if (inited_) {
-    LOG_INFO("Begin to close index, index:%s, field:%s", index_meta_.name(), index_meta_.field());
+    LOG_INFO("Begin to close index, index:%s, field:%s", index_meta_.name(), index_meta_.fields());
     index_handler_.close();
     inited_ = false;
   }
