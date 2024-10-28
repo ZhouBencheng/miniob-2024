@@ -137,6 +137,8 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
         NE
         NOT
         IS
+        IN
+        EXISTS
         NULL_T
         LIKE
 
@@ -667,6 +669,9 @@ expression:
     | vector_func {
       $$ = $1;
     }
+    | LBRACE select_stmt RBRACE {
+      $$ = $2;
+    }
 
 aggregation_func:
     aggregation_name LBRACE expression_list RBRACE {
@@ -748,19 +753,33 @@ condition:
       $$->comp = $2;
       LOG_DEBUG("condition: %s | %s", $1->name(),  $3->name());
     }
+    | EXISTS expression {
+      $$ = new ConditionSqlNode;
+      $$->left_expression.reset($2);
+      $$->comp = EXISTS_COMP;
+    }
+    | NOT EXISTS expression {
+      $$ = new ConditionSqlNode;
+      $$->left_expression.reset($3);
+      $$->comp = NOT_EXISTS_COMP;
+    }
     ;
 
 comp_op:
-    EQ         { $$ = EQUAL_TO;      }
-    | LT       { $$ = LESS_THAN;     }
-    | GT       { $$ = GREAT_THAN;    }
-    | LE       { $$ = LESS_EQUAL;    }
-    | GE       { $$ = GREAT_EQUAL;   }
-    | NE       { $$ = NOT_EQUAL;     }
-    | LIKE     { $$ = LIKE_COMP;     }
-    | NOT LIKE { $$ = NOT_LIKE_COMP; }
-    | IS       { $$ = IS_COMP;      }
-    | IS NOT   { $$ = IS_NOT_COMP;     }
+    EQ         { $$ = EQUAL_TO;          }
+    | LT       { $$ = LESS_THAN;         }
+    | GT       { $$ = GREAT_THAN;        }
+    | LE       { $$ = LESS_EQUAL;        } 
+    | GE       { $$ = GREAT_EQUAL;       }
+    | NE       { $$ = NOT_EQUAL;         }  
+    | LIKE     { $$ = LIKE_COMP;         }
+    | NOT LIKE { $$ = NOT_LIKE_COMP;     }
+    | IS       { $$ = IS_COMP;           }
+    | IS NOT   { $$ = IS_NOT_COMP;       }
+    | IN       { $$ = IN_COMP;           }
+    | NOT IN   { $$ = NOT_IN_COMP;       }
+    | EXISTS   { $$ = EXISTS_COMP;       }
+    | NOT EXISTS { $$ = NOT_EXISTS_COMP; }
     ;
 
 // your code here
