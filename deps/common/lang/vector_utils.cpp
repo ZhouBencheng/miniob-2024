@@ -7,7 +7,7 @@ namespace common {
 
 bool is_float(const char *str)
 {
-    for (int i = 0; i < strlen(str); i++) {
+    for (size_t i = 0; i < strlen(str); i++) {
         if (str[i] == '.') {
             return true;
         }
@@ -49,7 +49,7 @@ RC vector_from_string(char *str, char **data, int *len)
     bool *q = (bool *)data_temp;
     q[*len * 4] = is_int; // 使用最后一个字节存储bool值，表示是否为整数
     *data = data_temp;
-    *len = *len * 4 + 1;
+    *len = *len * 4 + 2;  // 最后一个字节存储bool是否为null，倒数第二个字节存储是否为整数，因此需要加2
     return RC::SUCCESS;
 }
 
@@ -73,8 +73,8 @@ string formatFloat(float value)
 
 RC vector_to_string(char *data, int len, string &str)
 {
-    bool is_int = *(data + len - 1); // 获取最后一个字节存储的bool值，表示是否为整数
-    len         = (len - 1) / 4;     // 认为len传入的Value中的length_字节长度，因此需要减一除以4来获取元素个数
+    bool is_int = *(data + len - 2); // 获取最后一个字节存储的bool值，表示是否为整数
+    len         = (len - 2) / 4;     // 认为len传入的Value中的length_字节长度，因此需要减2除以4来获取元素个数
     if (is_int) {
         int *p = (int *)data;
         str += "[";

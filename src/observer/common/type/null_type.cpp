@@ -9,3 +9,9 @@ int NullType::cast_cost(AttrType type)
 {
     return INT32_MAX;
 }
+
+RC NullType::to_string(const Value &value, string &result) const
+{
+    result = "NULL";
+    return RC::SUCCESS;
+}

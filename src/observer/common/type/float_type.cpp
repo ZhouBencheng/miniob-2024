@@ -48,6 +48,7 @@ RC FloatType::divide(const Value &left, const Value &right, Value &result) const
     // NOTE:
     // 设置为浮点数最大值是不正确的。通常的做法是设置为NULL，但是当前的miniob没有NULL概念，所以这里设置为浮点数最大值。
     result.set_type(AttrType::NULLS);
+    result.set_is_divided_by_zero(true);
   } else if(right.get_float() != 0){
     result.set_float(left.get_float() / right.get_float());
   }

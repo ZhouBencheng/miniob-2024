@@ -293,7 +293,7 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
         sql_result->close();
         return rc;
       }
-      if (value.attr_type() == AttrType::NULLS) { // 说明当前获得了一个除0结果的value
+      if (value.attr_type() == AttrType::NULLS && value.is_divided_by_zero()) { // 说明当前获得了一个除0结果的value
         LOG_DEBUG("get a value divided by zero");
         is_divided_by_zero = true;
         break;

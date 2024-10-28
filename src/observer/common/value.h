@@ -103,6 +103,7 @@ public:
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
   void set_value(const Value &value);
   void set_boolean(bool val);
+  void set_is_divided_by_zero(bool val) { this->is_divided_by_zero_ = val; }
 
   string to_string() const;
 
@@ -125,6 +126,7 @@ public:
   int         get_date() const;
   const char *get_vector() const;
   bool        is_int_vector() const;
+  bool        is_divided_by_zero() const { return this->is_divided_by_zero_; }
 
 private:
   void set_int(int val);
@@ -137,6 +139,7 @@ private:
 private:
   AttrType attr_type_ = AttrType::UNDEFINED;
   int      length_    = 0;
+  bool     is_divided_by_zero_ = false; // 用于区分NULL类型中的是否为除零类型的无效值
 
   union Val
   {
