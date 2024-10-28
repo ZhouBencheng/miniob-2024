@@ -29,8 +29,8 @@ int VectorType::compare(const Value &left_prev, const Value &right_prev) const
         right = right_prev;
     }
 
-    int left_len  = (left.length()  - 2) / 4;
-    int right_len = (right.length() - 2) / 4;
+    int left_len  = (left.length()  - 1) / 4;
+    int right_len = (right.length() - 1) / 4;
     bool left_is_int  = left.is_int_vector();
     bool right_is_int = right.is_int_vector();
     int i = 0;
@@ -102,8 +102,8 @@ RC VectorType::add(const Value &left_prev, const Value &right_prev, Value &resul
     }
     bool left_is_int  = left.is_int_vector();
     bool right_is_int = right.is_int_vector();
-    int left_len  = (left.length()  - 2) / 4;
-    int right_len = (right.length() - 2) / 4;
+    int left_len  = (left.length()  - 1) / 4;
+    int right_len = (right.length() - 1) / 4;
     if (left_len != right_len) {
         LOG_WARN("left and right vector length mismatch. left_len=%d, right_len=%d", left_len, right_len);
         return RC::INVALID_ARGUMENT;
@@ -173,8 +173,8 @@ RC VectorType::subtract(const Value &left_prev, const Value &right_prev, Value &
 
     bool left_is_int  = left.is_int_vector();
     bool right_is_int = right.is_int_vector();
-    int left_len  = (left.length()  - 2) / 4;
-    int right_len = (right.length() - 2) / 4;
+    int left_len  = (left.length()  - 1) / 4;
+    int right_len = (right.length() - 1) / 4;
     if (left_len != right_len) {
         LOG_WARN("left and right vector length mismatch. left_len=%d, right_len=%d", left_len, right_len);
         return RC::INVALID_ARGUMENT;
@@ -244,8 +244,8 @@ RC VectorType::multiply(const Value &left_prev, const Value &right_prev, Value &
 
     bool left_is_int  = left.is_int_vector();
     bool right_is_int = right.is_int_vector();
-    int left_len  = (left.length()  - 2) / 4;
-    int right_len = (right.length() - 2) / 4;
+    int left_len  = (left.length()  - 1) / 4;
+    int right_len = (right.length() - 1) / 4;
     if (left_len != right_len) {
         LOG_WARN("left and right vector length mismatch. left_len=%d, right_len=%d", left_len, right_len);
         return RC::INVALID_ARGUMENT;
@@ -292,7 +292,7 @@ RC VectorType::multiply(const Value &left_prev, const Value &right_prev, Value &
 RC VectorType::vector_aggregation(const Value &val, Value &result) const
 {
     bool is_int = val.is_int_vector();
-    int len = (val.length() - 2) / 4;
+    int len = (val.length() - 1) / 4;
     if (is_int) {
         int *p = (int *)val.get_vector();
         int result_val = 0;
