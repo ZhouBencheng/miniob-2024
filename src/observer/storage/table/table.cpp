@@ -326,18 +326,23 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
 RC Table::update_record(Record &record, const Value &value, const FieldMeta *field) 
 {
   RC rc = RC::SUCCESS;
-  // 判断并尝试转换value类型
-  if (value.attr_type() != field->type()) {
-    Value real_value;
-    rc = Value::cast_to(value, field->type(), real_value);
-    if (OB_FAIL(rc)) {
-      LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
-          table_meta_.name(), field->name(), value.to_string().c_str());
-      return rc;
-    }
-    rc = this->set_value_to_record(record.data(), real_value, field);
-  } else {
+  if (value.attr_type() == AttrType::NULLS) {
     rc = this->set_value_to_record(record.data(), value, field);
+    return RC::SUCCESS;
+  } else {
+    // 判断并尝试转换value类型
+    if (value.attr_type() != field->type()) {
+      Value real_value;
+      rc = Value::cast_to(value, field->type(), real_value);
+      if (OB_FAIL(rc)) {
+        LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
+            table_meta_.name(), field->name(), value.to_string().c_str());
+        return rc;
+      }
+      rc = this->set_value_to_record(record.data(), real_value, field);
+    } else {
+      rc = this->set_value_to_record(record.data(), value, field);
+    }
   }
 
   // 使用Table对象中的RecordFileHandler成员将新的记录更新回磁盘文件

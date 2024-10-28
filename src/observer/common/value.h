@@ -127,6 +127,7 @@ public:
   const char *get_vector() const;
   bool        is_int_vector() const;
   bool        is_divided_by_zero() const { return this->is_divided_by_zero_; }
+  bool        own_data() const { return this->own_data_; }
 
 private:
   void set_int(int val);

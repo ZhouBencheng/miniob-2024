@@ -144,7 +144,7 @@ void Value::set_int(int val)
   reset();
   attr_type_        = AttrType::INTS;
   value_.int_value_ = val;
-  length_           = sizeof(val);
+  length_           = sizeof(val) + 1;
 }
 
 void Value::set_date(int val) // set_date设置整型的版本
@@ -152,7 +152,7 @@ void Value::set_date(int val) // set_date设置整型的版本
   reset();
   attr_type_        = AttrType::DATES;
   value_.int_value_ = val;
-  length_           = sizeof(val);
+  length_           = sizeof(val) + 1;
 }
 
 void Value::set_float(float val)
@@ -160,17 +160,17 @@ void Value::set_float(float val)
   reset();
   attr_type_          = AttrType::FLOATS;
   value_.float_value_ = val;
-  length_             = sizeof(val);
+  length_             = sizeof(val) + 1;
 }
 void Value::set_boolean(bool val)
 {
   reset();
   attr_type_         = AttrType::BOOLEANS;
   value_.bool_value_ = val;
-  length_            = sizeof(val);
+  length_            = sizeof(val) + 1;
 }
 
-void Value::set_string(const char *s, int len /*= 0*/)
+void Value::set_string(const char *s, int len /*= 0*/) // 此处len传入字符串字节数量
 {
   reset();
   attr_type_ = AttrType::CHARS;
@@ -184,14 +184,14 @@ void Value::set_string(const char *s, int len /*= 0*/)
     } else {
       len = strlen(s);
     }
-    value_.pointer_value_ = new char[len + 1];
-    length_               = len;
+    value_.pointer_value_ = new char[len + 2];
+    length_               = len + 2;
     memcpy(value_.pointer_value_, s, len);
     value_.pointer_value_[len] = '\0';
   }
 }
 
-void Value::set_vector(const char *data, int len)
+void Value::set_vector(const char *data, int len) // 此处len传入的是实际向量类型的字节数量（带上is_int和is_null）
 {
   reset();
   attr_type_ = AttrType::VECTORS;
@@ -239,7 +239,7 @@ void Value::set_string_from_other(const Value &other)
   if (own_data_ && other.value_.pointer_value_ != nullptr && length_ != 0) {
     this->value_.pointer_value_ = new char[this->length_ + 1];
     memcpy(this->value_.pointer_value_, other.value_.pointer_value_, this->length_);
-    this->value_.pointer_value_[this->length_] = '\0';
+    this->value_.pointer_value_[this->length_ - 1] = '\0';
   }
 }
 
