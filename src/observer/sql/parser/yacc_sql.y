@@ -137,7 +137,6 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
         NE
         NOT
         IS
-        NULLABLE
         NULL_T
         LIKE
 
@@ -403,7 +402,7 @@ attr_def:
 nullable:
     /* empty */
     { $$ = false; } // 默认不规定null属性不准许空值
-    | NULLABLE 
+    | NULL_T
     { $$ = true; }
     | NOT NULL_T
     { $$ = false; }

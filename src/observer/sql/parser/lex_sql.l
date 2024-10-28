@@ -127,7 +127,7 @@ INFILE                                  RETURN_TOKEN(INFILE);
 EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 GROUP                                   RETURN_TOKEN(GROUP);
 NOT                                     RETURN_TOKEN(NOT);
-NULLABLE                                RETURN_TOKEN(NULLABLE);
+NULLABLE                                RETURN_TOKEN(NULL_T);
 NULL                                    RETURN_TOKEN(NULL_T);
 IS                                      RETURN_TOKEN(IS);
 LIKE                                    RETURN_TOKEN(LIKE);

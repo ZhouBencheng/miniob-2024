@@ -422,5 +422,5 @@ bool Value::is_int_vector() const {
   if (attr_type_ != AttrType::VECTORS) {
     return false;
   }
-  return *(value_.pointer_value_ + length_ - 1);
+  return *(value_.pointer_value_ + length_ - 2);
 }
