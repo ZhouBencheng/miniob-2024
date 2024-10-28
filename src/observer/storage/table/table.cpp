@@ -327,8 +327,12 @@ RC Table::update_record(Record &record, const Value &value, const FieldMeta *fie
 {
   RC rc = RC::SUCCESS;
   if (value.attr_type() == AttrType::NULLS) {
+    LOG_DEBUG("try to update a null value. table name:%s,field name:%s", table_meta_.name(), field->name());
+    if (!field->nullable()) {
+      LOG_WARN("field is not nullable. table name:%s,field name:%s", table_meta_.name(), field->name());
+      return RC::SCHEMA_FIELD_MISSING;
+    }
     rc = this->set_value_to_record(record.data(), value, field);
-    return RC::SUCCESS;
   } else {
     // 判断并尝试转换value类型
     if (value.attr_type() != field->type()) {
@@ -361,7 +365,11 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
   RC rc = RC::SUCCESS;
   size_t       copy_len = field->len();
   const size_t data_len = value.length();
-  if (field->type() == AttrType::CHARS) {
+  if (value.attr_type() == AttrType::NULLS) {
+    bool *is_null = (bool *)(record_data + field->offset() + copy_len - 1);
+    *is_null = true;
+    return rc;
+  } else if (field->type() == AttrType::CHARS) {
     if (copy_len > data_len) {
       copy_len = data_len + 1;
     }
@@ -371,10 +379,6 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
       copy_len = copy_len < data_len ? copy_len : data_len;
       rc = RC::INVALID_ARGUMENT;
     }
-  } else if (value.attr_type() == AttrType::NULLS) {
-    bool *is_null = (bool *)(record_data + field->offset() + copy_len - 1);
-    *is_null = true;
-    return rc;
   }
   memcpy(record_data + field->offset(), value.data(), copy_len - 1);
   bool *is_null = (bool *)(record_data + field->offset() + copy_len - 1);
