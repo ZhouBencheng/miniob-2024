@@ -366,7 +366,7 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
       copy_len = data_len + 1;
     }
   } else if (field->type() == AttrType::VECTORS) {
-    if(copy_len != data_len) {
+    if(copy_len - 1!= data_len) {
       LOG_WARN("field_len and data_len mismatch. field_len=%d, data_len=%d", copy_len, data_len);
       copy_len = copy_len < data_len ? copy_len : data_len;
       rc = RC::INVALID_ARGUMENT;
@@ -376,7 +376,7 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
     *is_null = true;
     return rc;
   }
-  memcpy(record_data + field->offset(), value.data(), copy_len);
+  memcpy(record_data + field->offset(), value.data(), copy_len - 1);
   bool *is_null = (bool *)(record_data + field->offset() + copy_len - 1);
   *is_null = false;
   return rc;
