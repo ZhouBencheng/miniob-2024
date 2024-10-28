@@ -306,6 +306,10 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
       LOG_WARN("failed to get value by child expression. rc=%s", strrc(rc));
       return rc;
     }
+    if (tmp_value.attr_type() == AttrType::NULLS) {
+      value.set_type(AttrType::NULLS);
+      return rc;
+    }
     bool bool_value = tmp_value.get_boolean();
     if ((conjunction_type_ == Type::AND && !bool_value) || (conjunction_type_ == Type::OR && bool_value)) {
       value.set_boolean(bool_value);

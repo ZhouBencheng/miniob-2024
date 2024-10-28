@@ -383,9 +383,9 @@ attr_def:
       $$->name = $1;
       $$->nullable = $6;
       if ($2 == static_cast<int>(AttrType::VECTORS)) { // 向量的字节长度为元素个数4倍
-        $$->length = $4 * 4 + 1;
+        $$->length = $4 * 4 + 2; // 对于向量类型，用倒数第二个字节表示标志位是否为空
       } else {
-        $$->length = $4;
+        $$->length = $4 + 1;
       }
       free($1);
     }
@@ -394,7 +394,7 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = 4;
+      $$->length = 4 + 1; // 用最后一个字节表示标志位是否为空
       $$->nullable = $3;
       free($1);
     }
@@ -476,6 +476,9 @@ value:
       $$ = new Value(tmp);
       free(tmp);
       free($1);
+    }
+    | NULL_T {
+      $$ = new Value(AttrType::NULLS, nullptr, 0);
     }
     ;
 storage_format:

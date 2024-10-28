@@ -130,6 +130,9 @@ void Value::set_data(char *data, int length)
     case AttrType::VECTORS: {
       set_vector(data, length);
     } break;
+    case AttrType::NULLS: {
+      length_ = length;
+    } break;
     default: {
       LOG_WARN("unknown data type in Value::set_data: %d", attr_type_);
     } break;
@@ -147,9 +150,9 @@ void Value::set_int(int val)
 void Value::set_date(int val) // set_date设置整型的版本
 {
   reset();
-  attr_type_ = AttrType::DATES;
+  attr_type_        = AttrType::DATES;
   value_.int_value_ = val;
-  length_ = sizeof(val);
+  length_           = sizeof(val);
 }
 
 void Value::set_float(float val)

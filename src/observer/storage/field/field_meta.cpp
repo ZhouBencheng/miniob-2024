@@ -77,6 +77,8 @@ int FieldMeta::offset() const { return attr_offset_; }
 
 int FieldMeta::len() const { return attr_len_; }
 
+bool FieldMeta::nullable() const { return nullable_; }
+
 bool FieldMeta::visible() const { return visible_; }
 
 int FieldMeta::field_id() const { return field_id_; }
