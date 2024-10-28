@@ -144,7 +144,7 @@ void Value::set_int(int val)
   reset();
   attr_type_        = AttrType::INTS;
   value_.int_value_ = val;
-  length_           = sizeof(val) + 1;
+  length_           = sizeof(val);
 }
 
 void Value::set_date(int val) // set_date设置整型的版本
@@ -152,7 +152,7 @@ void Value::set_date(int val) // set_date设置整型的版本
   reset();
   attr_type_        = AttrType::DATES;
   value_.int_value_ = val;
-  length_           = sizeof(val) + 1;
+  length_           = sizeof(val);
 }
 
 void Value::set_float(float val)
@@ -160,14 +160,14 @@ void Value::set_float(float val)
   reset();
   attr_type_          = AttrType::FLOATS;
   value_.float_value_ = val;
-  length_             = sizeof(val) + 1;
+  length_             = sizeof(val);
 }
 void Value::set_boolean(bool val)
 {
   reset();
   attr_type_         = AttrType::BOOLEANS;
   value_.bool_value_ = val;
-  length_            = sizeof(val) + 1;
+  length_            = sizeof(val);
 }
 
 void Value::set_string(const char *s, int len /*= 0*/) // 此处len传入字符串字节数量
@@ -184,8 +184,8 @@ void Value::set_string(const char *s, int len /*= 0*/) // 此处len传入字符�
     } else {
       len = strlen(s);
     }
-    value_.pointer_value_ = new char[len + 2];
-    length_               = len + 2;
+    value_.pointer_value_ = new char[len + 1];
+    length_               = len;
     memcpy(value_.pointer_value_, s, len);
     value_.pointer_value_[len] = '\0';
   }
@@ -239,7 +239,7 @@ void Value::set_string_from_other(const Value &other)
   if (own_data_ && other.value_.pointer_value_ != nullptr && length_ != 0) {
     this->value_.pointer_value_ = new char[this->length_ + 1];
     memcpy(this->value_.pointer_value_, other.value_.pointer_value_, this->length_);
-    this->value_.pointer_value_[this->length_ - 1] = '\0';
+    this->value_.pointer_value_[this->length_] = '\0';
   }
 }
 
@@ -267,6 +267,7 @@ string Value::to_string() const
 }
 
 int Value::compare(const Value &other) const { return DataType::type_instance(this->attr_type_)->compare(*this, other); }
+
 int Value::like(const Value &other) const {
   LOG_DEBUG("like operator is called. this=%s, other=%s", this -> value_.pointer_value_, other.value_.pointer_value_);
   // ASSERT(this->attr_type_ == other.attr_type_, "attr type is not equal");
@@ -274,6 +275,7 @@ int Value::like(const Value &other) const {
   
   return DataType::type_instance(this->attr_type_)->like(*this, other);
 }
+
 int Value::get_int() const
 {
   switch (attr_type_) {
