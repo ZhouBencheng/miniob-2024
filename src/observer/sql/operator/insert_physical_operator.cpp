@@ -36,11 +36,6 @@ RC InsertPhysicalOperator::open(Trx *trx)
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
   }
-  for(auto &val : values_) {
-    if (val.own_data()) {
-      free(const_cast<char *>(val.data()));
-    }
-  }
   return rc;
 }
 
