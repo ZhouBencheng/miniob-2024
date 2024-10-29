@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "event/sql_event.h"
 #include "session/session.h"
 #include "sql/stmt/stmt.h"
+#include "sql/stmt/create_index_stmt.h"
 
 using namespace common;
 
