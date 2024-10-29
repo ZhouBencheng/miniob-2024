@@ -130,8 +130,6 @@ NOT                                     RETURN_TOKEN(NOT);
 NULLABLE                                RETURN_TOKEN(NULL_T);
 NULL                                    RETURN_TOKEN(NULL_T);
 IS                                      RETURN_TOKEN(IS);
-IN                                      RETURN_TOKEN(IN);
-EXISTS                                  RETURN_TOKEN(EXISTS);
 LIKE                                    RETURN_TOKEN(LIKE);
 BY                                      RETURN_TOKEN(BY);
 STORAGE                                 RETURN_TOKEN(STORAGE);
