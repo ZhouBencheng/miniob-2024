@@ -45,6 +45,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/operator/update_logical_operator.h"
 #include "sql/operator/update_physical_operator.h"
+#include "src/observer/storage/index/bplus_tree.h"
 
 using namespace std;
 
@@ -168,19 +169,13 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
       }
 
       const Field &field = field_expr->field();
-      // index              = table->find_index_by_field(field.field_name());
-      // if (nullptr != index) {
-      //   break;
-      // }
-
-      all_field.emplace_back(field.field_name());
+      index              = table->find_index_by_field(field.field_name());
+      if (nullptr != index) {
+        break;
+      }
 
     }
   }
-
-  // 寻找包括所有field的index
-  index = table->find_index_by_fields(all_field);
-  
 
   if (index != nullptr) {
     ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
