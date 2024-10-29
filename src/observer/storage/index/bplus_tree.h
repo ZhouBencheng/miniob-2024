@@ -72,7 +72,7 @@ public:
 
   int attr_length() const { 
     int sum_len = 0;
-    for (int i = 0; i < attr_length_.size(); i++){
+    for (std::vector<int>::size_type  i = 0; i < attr_length_.size(); i++){
       sum_len += attr_length_[i];
 
     }
@@ -255,7 +255,7 @@ struct IndexFileHeader
   AttrType attr_type[MAX_INDEX_FIELD_NUM];        ///< 键值的类型
 
 
-  const std::string to_string()
+  const std::string to_string() const
   {
     std::stringstream ss;
 
