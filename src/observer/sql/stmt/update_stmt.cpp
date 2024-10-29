@@ -52,7 +52,7 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
   // 构造ExpressionBinder对象
   BinderContext binder_context;
   binder_context.add_table(table);
-  ExpressionBinder expression_binder(binder_context);
+  ExpressionBinder expression_binder(binder_context, db);
 
   // FilterStmt::create函数：当condition中不存在过滤条件时，依然将filter_stmt指针构造为一个空的FilterStmt对象
   FilterStmt *filter_stmt = nullptr;

@@ -94,7 +94,7 @@ private:
 
 private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
-  std::vector<JoinTable>                  join_tables_; // JoinTables类型数组存储外连接关系
+  std::vector<JoinTable>                   join_tables_; // JoinTables类型数组存储外连接关系
   FilterStmt                              *filter_stmt_ = nullptr;
   std::vector<std::unique_ptr<Expression>> group_by_;
 };

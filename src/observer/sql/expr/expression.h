@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 #include "storage/field/field.h"
 #include "sql/expr/aggregator.h"
-#include "storage/common/chunk.h"
+#include "storage/common/chunk.h" 
 
 class Tuple;
 
@@ -49,6 +49,7 @@ enum class ExprType
   ARITHMETIC,   ///< 算术运算
   AGGREGATION,  ///< 聚合运算
   VECTOR_FUNC,  ///< 向量运算
+  SUBQUERY,     ///< 子查询
 };
 
 /**
@@ -584,4 +585,28 @@ private:
   Type                        vector_func_type_;
   std::unique_ptr<Expression> left_;
   std::unique_ptr<Expression> right_;
+};
+
+class SelectStmt;
+class LogicalOperator;
+class PhysicalOperator;
+
+class SubqueryExpr : public Expression
+{
+public:
+  SubqueryExpr(std::unique_ptr<ParsedSqlNode> parsed_sql_node);
+  virtual ~SubqueryExpr();
+
+  ExprType type() const override;
+
+  RC       get_value(const Tuple &tuple, Value &value) const override;
+  
+  // 认为子查询结果只能支持一个值或者一个列构成的value数组
+  AttrType value_type() const override;
+
+private:
+  std::unique_ptr<ParsedSqlNode>      parsed_sql_node_;  // parser解析出的select成分
+  std::unique_ptr<SelectStmt>         select_stmt_       = nullptr; // resolver解析出的SelectStmt
+  std::unique_ptr<LogicalOperator>    logical_operator_  = nullptr; // 子查询的逻辑计划
+  std::unique_ptr<PhysicalOperator>   physical_operator_ = nullptr; // 子查询的物理计划
 };

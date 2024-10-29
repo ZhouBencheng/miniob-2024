@@ -220,13 +220,16 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       if (left->value_type() != right->value_type()) {
         auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
         auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
-        if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
+
+        // 当右子表达式为子查询时，需要将左子表达式转化为右边的类型
+        if ((left_to_right_cost <= right_to_left_cost || right->type() == ExprType::SUBQUERY) && 
+            left_to_right_cost != INT32_MAX) {
+
           ExprType left_type = left->type();
           auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
           if (left_type == ExprType::VALUE) {
             Value left_val;
-            if (OB_FAIL(rc = cast_expr->try_get_value(left_val)))
-            {
+            if (OB_FAIL(rc = cast_expr->try_get_value(left_val))) {
               LOG_WARN("failed to get value from left child", strrc(rc));
               return rc;
             }
@@ -239,8 +242,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
           auto cast_expr = make_unique<CastExpr>(std::move(right), left->value_type());
           if (right_type == ExprType::VALUE) {
             Value right_val;
-            if (OB_FAIL(rc = cast_expr->try_get_value(right_val)))
-            {
+            if (OB_FAIL(rc = cast_expr->try_get_value(right_val))) {
               LOG_WARN("failed to get value from right child", strrc(rc));
               return rc;
             }
@@ -255,6 +257,20 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
           return rc;
         }
       } 
+
+      // 在optimizer阶段将子查询的stmt解析为逻辑算子
+      if (right->type() == ExprType::SUBQUERY) {
+        SubqueryExpr *subquery_expr = static_cast<SubqueryExpr *>(right.get());
+
+        std::unique_ptr<LogicalOperator> subquery_oper = nullptr;
+        rc = create_plan(subquery_expr->select_stmt().get(), subquery_oper);
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("failed to create subquery logical plan. rc=%s", strrc(rc));
+          return rc;
+        }
+
+        subquery_expr->set_logical_operator(std::move(subquery_oper));
+      }
     }
 
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));

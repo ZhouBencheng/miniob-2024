@@ -26,7 +26,6 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record.h"
 
 class Table;
-
 /**
  * @defgroup Tuple
  * @brief Tuple 元组，表示一行数据，当前返回客户端时使用

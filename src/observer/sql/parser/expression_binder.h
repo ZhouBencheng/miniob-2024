@@ -44,7 +44,7 @@ private:
 class ExpressionBinder
 {
 public:
-  ExpressionBinder(BinderContext &context) : context_(context) {}
+  ExpressionBinder(BinderContext &context, Db *db) : db_(db), context_(context) {}
   virtual ~ExpressionBinder() = default;
 
   RC bind_expression(std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
@@ -70,7 +70,10 @@ private:
       std::unique_ptr<Expression> &aggregate_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
   RC bind_unbound_vector_expression(
       std::unique_ptr<Expression> &unbound_vector_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+  RC bind_subquery_expression(
+      std::unique_ptr<Expression> &subquery_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
 
 private:
+  Db            *db_;
   BinderContext &context_;
 };

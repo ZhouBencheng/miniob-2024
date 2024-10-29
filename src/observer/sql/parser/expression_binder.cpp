@@ -18,6 +18,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "sql/parser/expression_binder.h"
 #include "sql/expr/expression_iterator.h"
+#include "sql/stmt/stmt.h"
+#include "sql/stmt/select_stmt.h"
 
 using namespace std;
 using namespace common;
@@ -100,6 +102,10 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
 
     case ExprType::VECTOR_FUNC: {
       ASSERT(false, "You are trying to bind vector function. It shouldn't be here");
+    } break;
+
+    case ExprType::SUBQUERY: {
+      return bind_subquery_expression(expr, bound_expressions);
     } break;
 
     default: {
@@ -531,5 +537,28 @@ RC ExpressionBinder::bind_unbound_vector_expression(
   vector_expr->set_name(unbound_vector_expr->name());
 
   bound_expressions.emplace_back(std::move(vector_expr));
+  return RC::SUCCESS;
+}
+
+// 对于顶级查询，在ConditionSqlNode生成filter_stmt的过程中，会调用expression_binder中的绑定函数
+// 此时，我们将SubqueryExpr中select_sql_node转化为select_stmt作为绑定
+RC ExpressionBinder::bind_subquery_expression(
+    std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &bound_expressions)
+{
+  RC rc = RC::SUCCESS;
+  auto subquery_expr = static_cast<SubqueryExpr *>(expr.get());
+
+  Stmt          *stmt = nullptr;
+  ParsedSqlNode *sql_node = subquery_expr->parsed_sql_node().get();
+
+  rc = Stmt::create_stmt(db_, *sql_node, stmt);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("Fail to create select stmt when binding subquery expression");
+    return rc;
+  }
+  ASSERT(stmt->type() == StmtType::SELECT, "The stmt type resolved from subquery is not select");
+  
+  subquery_expr->set_stmt(std::unique_ptr<SelectStmt>(static_cast<SelectStmt *>(stmt)));
+  bound_expressions.emplace_back(std::move(expr));
   return RC::SUCCESS;
 }

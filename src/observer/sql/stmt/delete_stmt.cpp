@@ -50,7 +50,7 @@ RC DeleteStmt::create(Db *db, DeleteSqlNode &delete_sql, Stmt *&stmt)
   // 构造ExpressionBinder对象
   BinderContext binder_context;
   binder_context.add_table(table);
-  ExpressionBinder expression_binder(binder_context);
+  ExpressionBinder expression_binder(binder_context, db);
 
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(

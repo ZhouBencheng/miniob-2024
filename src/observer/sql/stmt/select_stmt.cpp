@@ -67,7 +67,7 @@ RC SelectStmt::handle_from_clause(Db       *db,
     }
 
     FilterStmt      *filter_stmt = nullptr;
-    ExpressionBinder expression_binder(binder_context);
+    ExpressionBinder expression_binder(binder_context, db);
     // 对于InnerJoinSqlNode中的basic_relation表，其on_conds为空，因此在JoinTables中只需要推入(Table *, nullptr)即可，FilterStmt对象为空
     if (!on_conds.empty()) {
       // 对于InnerJoinSqlNode中的join_relations表，其on_conds不为空，因此在JoinTables中需要推入(Table *, FilterStmt *)
@@ -132,7 +132,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
-  ExpressionBinder expression_binder(binder_context);
+  ExpressionBinder expression_binder(binder_context, db);
   
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
     RC rc = expression_binder.bind_expression(expression, bound_expressions);

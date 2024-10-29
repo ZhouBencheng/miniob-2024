@@ -17,7 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 #include <vector>
 
-#include "sql/expr/expression.h"
+// #include "sql/expr/expression.h"
+class Expression;
 
 /**
  * @brief 逻辑算子

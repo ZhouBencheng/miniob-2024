@@ -17,6 +17,11 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
 #include "sql/parser/parse_defs.h"
+#include "sql/stmt/select_stmt.h"
+#include "sql/operator/logical_operator.h"
+#include "sql/operator/physical_operator.h"
+#include "sql/optimizer/logical_plan_generator.h"
+#include "sql/optimizer/physical_plan_generator.h"
 
 using namespace std;
 
@@ -811,5 +816,27 @@ RC VectorExpr::calc_inner_product(const Value &left, const Value &right, Value &
   
   Value::vector_aggregation(multiply_value, value); // 获取乘积的聚合值
   
+  return RC::SUCCESS;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+SubqueryExpr::SubqueryExpr(std::unique_ptr<ParsedSqlNode> parsed_sql_node)
+    : parsed_sql_node_(std::move(parsed_sql_node))
+{}
+
+SubqueryExpr::~SubqueryExpr() = default;
+
+ExprType SubqueryExpr::type() const
+{
+  return ExprType::SUBQUERY;
+}
+
+AttrType SubqueryExpr::value_type() const
+{
+  return AttrType::UNDEFINED;
+}
+
+RC SubqueryExpr::get_value(const Tuple &tuple, Value &value) const
+{
   return RC::SUCCESS;
 }
