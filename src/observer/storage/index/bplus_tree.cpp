@@ -863,7 +863,7 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
   file_header->leaf_max_size = leaf_max_size;
   file_header->root_page = BP_INVALID_PAGE_NUM;
   file_header->attr_num = fields.size();
-  for (int i = 0; i < fields.size(); i++) {
+  for (size_t i = 0; i < fields.size(); i++) {
     file_header->field_id[i] = field_ids[i];
     file_header->attr_type[i] = fields[i]->type();
     file_header->attr_offset[i] = fields[i]->offset();

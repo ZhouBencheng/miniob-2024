@@ -72,7 +72,7 @@ public:
 
   int attr_length() const { 
     int sum_len = 0;
-    for (int i = 0; i < attr_length_.size(); i++){
+    for (std::vector<int>::size_type  i = 0; i < attr_length_.size(); i++){
       sum_len += attr_length_[i];
 
     }
