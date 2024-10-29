@@ -592,6 +592,17 @@ Index *Table::find_index_by_field(const char *field_name) const
   return nullptr;
 }
 
+Index *Table::find_index_by_fields(std::vector<const char*> all_field){
+
+  const TableMeta &table_meta = this->table_meta();
+  const IndexMeta *index_meta = table_meta.find_index_by_fields(all_field);
+  if (index_meta != nullptr) {
+    return this->find_index(index_meta->name());
+  }
+  return nullptr;
+
+}
+
 RC Table::sync()
 {
   RC rc = RC::SUCCESS;

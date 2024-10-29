@@ -129,7 +129,7 @@ private:
 public:
   Index *find_index(const char *index_name) const;
   Index *find_index_by_field(const char *field_name) const;
-
+  Index *find_index_by_fields(std::vector<const char*> all_field);
 private:
   Db                *db_ = nullptr;
   string             base_dir_;                     // 表数据存放路径

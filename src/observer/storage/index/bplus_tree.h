@@ -82,14 +82,25 @@ public:
   int operator()(const char *v1, const char *v2) const
   {
     // TODO: optimized the comparison
-    // 先不改，因为似乎本来就没有实现比较
-    Value left;
-    left.set_type(attr_type_[0]);
-    left.set_data(v1, attr_length_[0]);
-    Value right;
-    right.set_type(attr_type_[0]);
-    right.set_data(v2, attr_length_[0]);
-    return DataType::type_instance(attr_type_[0])->compare(left, right);
+
+    // 循环比较每一个属性
+    int offset = 0;
+    int cmp_res = 0;
+    for (size_t i = 0; i < attr_type_.size(); i++) {
+      Value left;
+      left.set_type(attr_type_[i]);
+      left.set_data(v1 + offset, attr_length_[i]);
+      Value right;
+      right.set_type(attr_type_[i]);
+      right.set_data(v2 + offset, attr_length_[i]);
+
+      cmp_res = DataType::type_instance(attr_type_[i])->compare(left, right);
+      if (cmp_res != 0){
+        return cmp_res;
+      }
+      offset += attr_length_[i];
+    }
+    return cmp_res;
   }
 
 private:

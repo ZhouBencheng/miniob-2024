@@ -160,6 +160,37 @@ const IndexMeta *TableMeta::find_index_by_field(const char *field) const
   return nullptr;
 }
 
+const IndexMeta *TableMeta::find_index_by_fields(std::vector<const char*> all_field) const{
+  for (const IndexMeta &index: indexes_){
+
+    int index_field_num = index.fields().size();
+    if( index_field_num < all_field.size()){
+      break;
+    }
+    int cnt = 0;
+    // 统计index中包含几个目标属性
+    for (int i = 0; i < index_field_num; i ++){
+      
+      const char* left_field = index.fields().at(i).c_str();
+      for (auto &right_field: all_field){
+        if (0 == (strcmp(left_field, right_field))){
+          cnt++;
+          break;
+        }
+      }
+
+    }
+
+    if(cnt == all_field.size()){
+      return &index;
+    }
+
+  } 
+  return nullptr;
+
+}
+
+
 const IndexMeta *TableMeta::index(int i) const { return &indexes_[i]; }
 
 int TableMeta::index_num() const { return indexes_.size(); }

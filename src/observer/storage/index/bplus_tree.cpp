@@ -1625,6 +1625,8 @@ MemPoolItem::item_unique_ptr BplusTreeHandler::make_key(const char *user_key, co
 
 RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
 {
+  LOG_DEBUG("索引插入节点");
+
   if (user_key == nullptr || rid == nullptr) {
     LOG_WARN("Invalid arguments, key is empty or rid is empty");
     return RC::INVALID_ARGUMENT;
@@ -1912,6 +1914,8 @@ RC BplusTreeHandler::delete_entry_internal(BplusTreeMiniTransaction &mtr, Frame 
 
 RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
 {
+  LOG_DEBUG("索引删除节点");
+
   MemPoolItem::item_unique_ptr pkey = mem_pool_item_->alloc_unique_ptr();
   if (nullptr == pkey) {
     LOG_WARN("Failed to alloc memory for key. size=%d", file_header_.key_length);
