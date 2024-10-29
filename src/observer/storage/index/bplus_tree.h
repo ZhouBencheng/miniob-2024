@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/lang/functional.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "sql/parser/parse_defs.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/record/record_manager.h"
@@ -59,29 +60,42 @@ enum class BplusTreeOperationType
 class AttrComparator
 {
 public:
-  void init(AttrType type, int length)
+
+  void init(int attr_num, int *field_id, AttrType *type, int *length)
   {
-    attr_type_   = type;
-    attr_length_ = length;
+    for (int i = 0; i < attr_num; i++) {
+      field_id_.emplace_back(field_id[i]);
+      attr_type_.emplace_back(type[i]);
+      attr_length_.emplace_back(length[i]);
+    }
   }
 
-  int attr_length() const { return attr_length_; }
+  int attr_length() const { 
+    int sum_len = 0;
+    for (int i = 0; i < attr_length_.size(); i++){
+      sum_len += attr_length_[i];
+
+    }
+    return sum_len;
+     }
 
   int operator()(const char *v1, const char *v2) const
   {
     // TODO: optimized the comparison
+    // 先不改，因为似乎本来就没有实现比较
     Value left;
-    left.set_type(attr_type_);
-    left.set_data(v1, attr_length_);
+    left.set_type(attr_type_[0]);
+    left.set_data(v1, attr_length_[0]);
     Value right;
-    right.set_type(attr_type_);
-    right.set_data(v2, attr_length_);
-    return DataType::type_instance(attr_type_)->compare(left, right);
+    right.set_type(attr_type_[0]);
+    right.set_data(v2, attr_length_[0]);
+    return DataType::type_instance(attr_type_[0])->compare(left, right);
   }
 
 private:
-  AttrType attr_type_;
-  int      attr_length_;
+  std::vector<int> field_id_;
+  std::vector<int> attr_length_;
+  std::vector<AttrType> attr_type_;
 };
 
 /**
@@ -92,7 +106,11 @@ private:
 class KeyComparator
 {
 public:
-  void init(AttrType type, int length) { attr_comparator_.init(type, length); }
+
+  void init(int attr_num, int* field_id, AttrType* type, int * length){
+    attr_comparator_.init(attr_num, field_id, type, length);
+  }
+
 
   const AttrComparator &attr_comparator() const { return attr_comparator_; }
 
@@ -119,23 +137,67 @@ private:
 class AttrPrinter
 {
 public:
-  void init(AttrType type, int length)
+  void init(int attr_num, AttrType *type, int *length)
   {
-    attr_type_   = type;
-    attr_length_ = length;
+    for (int i = 0; i < attr_num; i++) {
+      attr_type_.emplace_back(type[i]);
+      attr_length_.emplace_back(length[i]);
+    }
   }
 
-  int attr_length() const { return attr_length_; }
-
-  string operator()(const char *v) const
+  int attr_length() const
   {
-    Value value(attr_type_, const_cast<char *>(v), attr_length_);
-    return value.to_string();
+    int len_sum = 0;
+    for (size_t i = 0; i < attr_length_.size(); i++) {
+      len_sum += attr_length_[i];
+    }
+    return len_sum;
+  }
+
+  std::string operator()(const char *v) const
+  {
+    int offset = 0;
+    std::string key_str;
+    for (size_t idx = 0; idx < attr_type_.size(); idx++) {
+      switch (attr_type_[idx]) {
+        case AttrType::INTS:
+        case AttrType::DATES: {
+          key_str += std::to_string(*(int *)(v + offset));
+          key_str += ",";
+          offset += attr_length_[idx];
+          break;
+        }
+        case AttrType::FLOATS: {
+          key_str += std::to_string(*(float *)(v + offset));
+          key_str += ",";
+          offset += attr_length_[idx];
+          break;
+        }
+        case AttrType::CHARS: {
+          std::string str;
+          for (int i = 0; i < attr_length_[idx]; i++) {
+              if (v[offset + i] == 0) {
+                  break;
+              }
+              str.push_back(v[offset + i]);
+          }
+          key_str += str;
+          key_str += ",";
+          offset += attr_length_[idx]; // 更新 offset
+          break;
+        }
+        default: {
+          ASSERT(false, "unknown attr type. %d", attr_type_);
+        }
+      }
+    }
+    key_str += " ";
+    return key_str;
   }
 
 private:
-  AttrType attr_type_;
-  int      attr_length_;
+  std::vector<AttrType> attr_type_;
+  std::vector<int> attr_length_;
 };
 
 /**
@@ -145,7 +207,10 @@ private:
 class KeyPrinter
 {
 public:
-  void init(AttrType type, int length) { attr_printer_.init(type, length); }
+    void init(int attr_num, AttrType *type, int *length)
+  {
+    attr_printer_.init(attr_num, type, length);
+  }
 
   const AttrPrinter &attr_printer() const { return attr_printer_; }
 

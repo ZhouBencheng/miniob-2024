@@ -44,7 +44,7 @@ BplusTreeIndex::~BplusTreeIndex() noexcept { close(); }
 //   return RC::SUCCESS;
 // }
 
-RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, 
+RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &index_meta, 
               const std::vector<int> &field_ids, const std::vector<const FieldMeta*> &field_metas)
 {
   if (inited_) {
@@ -71,11 +71,11 @@ RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta,
 
   inited_ = true;
   LOG_INFO(
-      "Successfully create index, file_name:%s, index:%s, field:%s", file_name, index_meta.name(), index_meta.field());
+      "Successfully create index, file_name:%s, index:%s, field:%s", file_name, index_meta.name(), index_meta.fields());
   return RC::SUCCESS;
 }
 
-RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
+RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &index_meta, const std::vector<const FieldMeta*> &field_metas)
 {
   if (inited_) {
     LOG_WARN("Failed to open index due to the index has been initedd before. file_name:%s, index:%s, field:%s",
@@ -83,7 +83,7 @@ RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &in
     return RC::RECORD_OPENNED;
   }
 
-  Index::init(index_meta, field_meta);
+  Index::init(index_meta, field_metas);
 
   BufferPoolManager &bpm = table->db()->buffer_pool_manager();
   RC rc = index_handler_.open(table->db()->log_handler(), bpm, file_name);
@@ -113,12 +113,12 @@ RC BplusTreeIndex::close()
 
 RC BplusTreeIndex::insert_entry(const char *record, const RID *rid)
 {
-  return index_handler_.insert_entry(record + field_meta_.offset(), rid);
+  return index_handler_.insert_entry(record, rid);
 }
 
 RC BplusTreeIndex::delete_entry(const char *record, const RID *rid)
 {
-  return index_handler_.delete_entry(record + field_meta_.offset(), rid);
+  return index_handler_.delete_entry(record, rid);
 }
 
 IndexScanner *BplusTreeIndex::create_scanner(
