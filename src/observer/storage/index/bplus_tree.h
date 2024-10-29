@@ -255,7 +255,7 @@ struct IndexFileHeader
   AttrType attr_type[MAX_INDEX_FIELD_NUM];        ///< 键值的类型
 
 
-  const std::string to_string()
+  const std::string to_string() const
   {
     std::stringstream ss;
 
