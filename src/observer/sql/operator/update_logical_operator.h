@@ -2,6 +2,10 @@
 
 #include "sql/operator/logical_operator.h"
 
+class Field;
+class Value;
+class Table;
+
 /**
  * @brief 逻辑算子，用于执行update语句
  * @ingroup LogicalOperator

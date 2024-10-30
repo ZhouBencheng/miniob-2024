@@ -19,6 +19,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/logical_operator.h"
 #include "sql/parser/parse_defs.h"
 
+class Table;
+
 /**
  * @brief 插入逻辑算子
  * @ingroup LogicalOperator

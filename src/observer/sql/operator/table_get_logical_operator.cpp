@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/operator/table_get_logical_operator.h"
+#include "sql/expr/expression.h"
 
 TableGetLogicalOperator::TableGetLogicalOperator(Table *table, ReadWriteMode mode)
     : table_(table), mode_(mode)

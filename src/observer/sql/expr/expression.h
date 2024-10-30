@@ -136,6 +136,11 @@ public:
    */
   virtual std::unique_ptr<Expression> clone() const { return nullptr; }
 
+  /**
+   * @brief 后序遍历表达式进行检查和处理
+   */
+  virtual RC traverse_check(const std::function<RC(Expression *)> &check_func) { return check_func(this); }
+
 protected:
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
@@ -298,6 +303,8 @@ public:
 
   std::unique_ptr<Expression> clone() const override { return std::make_unique<CastExpr>(child_->clone(), cast_type_); }
 
+  RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
 private:
   RC cast(const Value &value, Value &cast_value) const;
 
@@ -349,6 +356,8 @@ public:
 
   std::unique_ptr<Expression> clone() const override { return std::make_unique<ComparisonExpr>(comp_, left_->clone(), right_->clone()); }
 
+  RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
 private:
   CompOp                      comp_;
   std::unique_ptr<Expression> left_;
@@ -389,6 +398,8 @@ public:
     }
     return std::make_unique<ConjunctionExpr>(conjunction_type_, std::move(cloned_children));
   }
+
+  RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
 
 private:
   Type                                     conjunction_type_;
@@ -440,6 +451,8 @@ public:
   std::unique_ptr<Expression> &right() { return right_; }
 
   std::unique_ptr<Expression> clone() const override { return std::make_unique<ArithmeticExpr>(arithmetic_type_, left_->clone(), right_->clone()); }
+
+  RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
 
 private:
   RC calc_value(const Value &left_value, const Value &right_value, Value &value) const;
@@ -516,6 +529,8 @@ public:
 
   std::unique_ptr<Expression> clone() const override { return std::make_unique<AggregateExpr>(aggregate_type_, child_->clone()); }
 
+  RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
 public:
   static RC type_from_string(const char *type_str, Type &type);
 
@@ -573,6 +588,10 @@ public:
   std::unique_ptr<Expression> &left()  { return left_; }
   std::unique_ptr<Expression> &right() { return right_; }
 
+  std::unique_ptr<Expression> clone() const override { return std::make_unique<VectorExpr>(vector_func_type_, left_->clone(), right_->clone()); }
+
+  RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
 public:
   static RC type_from_string(const char *type_str, Type &type);
 
@@ -587,26 +606,31 @@ private:
   std::unique_ptr<Expression> right_;
 };
 
+
 class SelectStmt;
 class LogicalOperator;
 class PhysicalOperator;
 
-class SubqueryExpr : public Expression
+class SubQueryExpr : public Expression
 {
 public:
-  SubqueryExpr(std::unique_ptr<ParsedSqlNode> parsed_sql_node);
-  virtual ~SubqueryExpr();
+  SubQueryExpr(std::unique_ptr<ParsedSqlNode> parsed_sql_node);
+  virtual ~SubQueryExpr();
 
-  ExprType type() const override;
-
-  RC       get_value(const Tuple &tuple, Value &value) const override;
-  
-  // 认为子查询结果只能支持一个值或者一个列构成的value数组
   AttrType value_type() const override;
+  ExprType type()       const override;
+  RC       get_value(const Tuple &tuple, Value &value) const override;
+
+  RC open(Trx *trx);
+  RC close();
+
+  RC generate_select_stmt(Db *db);
+  RC generate_logical_operator();
+  RC generate_physical_operator();
 
 private:
-  std::unique_ptr<ParsedSqlNode>      parsed_sql_node_;  // parser解析出的select成分
-  std::unique_ptr<SelectStmt>         select_stmt_       = nullptr; // resolver解析出的SelectStmt
-  std::unique_ptr<LogicalOperator>    logical_operator_  = nullptr; // 子查询的逻辑计划
-  std::unique_ptr<PhysicalOperator>   physical_operator_ = nullptr; // 子查询的物理计划
+  std::unique_ptr<ParsedSqlNode>    parsed_sql_node_;
+  std::unique_ptr<SelectStmt>       select_stmt_;
+  std::unique_ptr<LogicalOperator>  logical_operator_;
+  std::unique_ptr<PhysicalOperator> physical_operator_;
 };

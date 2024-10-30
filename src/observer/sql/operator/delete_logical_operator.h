@@ -16,6 +16,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/logical_operator.h"
 
+class Table;
+
 /**
  * @brief 逻辑算子，用于执行delete语句
  * @ingroup LogicalOperator

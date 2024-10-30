@@ -670,7 +670,7 @@ expression:
       $$ = $1;
     }
     | LBRACE select_stmt RBRACE {
-      $$ = new SubqueryExpr(make_unique<ParsedSqlNode>(std::move(*$2)));
+      $$ = new SubQueryExpr(make_unique<ParsedSqlNode>(std::move(*$2)));
     }
 
 aggregation_func:

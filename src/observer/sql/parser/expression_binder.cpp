@@ -546,19 +546,13 @@ RC ExpressionBinder::bind_subquery_expression(
     std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &bound_expressions)
 {
   RC rc = RC::SUCCESS;
-  auto subquery_expr = static_cast<SubqueryExpr *>(expr.get());
+  auto subquery_expr = static_cast<SubQueryExpr *>(expr.get());
 
-  Stmt          *stmt = nullptr;
-  ParsedSqlNode *sql_node = subquery_expr->parsed_sql_node().get();
-
-  rc = Stmt::create_stmt(db_, *sql_node, stmt);
+  rc = subquery_expr->generate_select_stmt(db_);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("Fail to create select stmt when binding subquery expression");
+    LOG_WARN("Fail to generate select stmt when binding subquery expression");
     return rc;
   }
-  ASSERT(stmt->type() == StmtType::SELECT, "The stmt type resolved from subquery is not select");
-  
-  subquery_expr->set_stmt(std::unique_ptr<SelectStmt>(static_cast<SelectStmt *>(stmt)));
   bound_expressions.emplace_back(std::move(expr));
-  return RC::SUCCESS;
+  return rc;
 }

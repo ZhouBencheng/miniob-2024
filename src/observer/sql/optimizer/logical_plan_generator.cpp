@@ -105,7 +105,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
   // 构建FROM子句
   const std::vector<SelectStmt::JoinTable> &join_tables = select_stmt->join_tables();
 
-  auto handle_one_join_table = [this](std::unique_ptr<LogicalOperator> &prev_oper, Table *table, FilterStmt *filter_stmt) -> RC {
+  auto handle_one_join_table = [](std::unique_ptr<LogicalOperator> &prev_oper, Table *table, FilterStmt *filter_stmt) -> RC {
     unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
     unique_ptr<LogicalOperator> predicate_oper;
 
@@ -206,6 +206,20 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
   return RC::SUCCESS;
 }
 
+RC check_and_process_subquery_expr(unique_ptr<Expression> &expr) {
+  RC rc = RC::SUCCESS;
+  if (expr->type() == ExprType::SUBQUERY) {
+    // 将子查询表达式转化为子查询逻辑算子
+    auto subquery_expr = static_cast<SubQueryExpr*>(expr.get());
+    rc = subquery_expr->generate_logical_operator();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to generate subquery logical operator. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+  return rc;
+}
+
 RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
   RC                                  rc = RC::SUCCESS;
@@ -257,19 +271,17 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
           return rc;
         }
       } 
+      // 下述检查并处理左右子表达式中是子查询的情况
+      rc = check_and_process_subquery_expr(left);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to check and process subquery expr. rc=%s", strrc(rc));
+        return rc;
+      }
 
-      // 在optimizer阶段将子查询的stmt解析为逻辑算子
-      if (right->type() == ExprType::SUBQUERY) {
-        SubqueryExpr *subquery_expr = static_cast<SubqueryExpr *>(right.get());
-
-        std::unique_ptr<LogicalOperator> subquery_oper = nullptr;
-        rc = create_plan(subquery_expr->select_stmt().get(), subquery_oper);
-        if (rc != RC::SUCCESS) {
-          LOG_WARN("failed to create subquery logical plan. rc=%s", strrc(rc));
-          return rc;
-        }
-
-        subquery_expr->set_logical_operator(std::move(subquery_oper));
+      rc = check_and_process_subquery_expr(right);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to check and process subquery expr. rc=%s", strrc(rc));
+        return rc;
       }
     }
 

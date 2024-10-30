@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/physical_operator.h"
 #include "sql/optimizer/logical_plan_generator.h"
 #include "sql/optimizer/physical_plan_generator.h"
+#include "expression.h"
 
 using namespace std;
 
@@ -121,6 +122,22 @@ RC CastExpr::try_get_value(Value &result) const
   }
 
   return cast(value, result);
+}
+
+RC CastExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
+{
+  RC rc = RC::SUCCESS;
+  rc = child_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check child expression in cast expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = check_func(this);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to check cast expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  return rc;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -304,6 +321,27 @@ RC ComparisonExpr::get_table_ptr(const Table **table_ptr) const
   }
 }
 
+RC ComparisonExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
+{
+  RC rc = RC::SUCCESS;
+  rc = left_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check left expression in comparison expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = right_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check right expression in comparison expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = check_func(this);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to check comparison expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  return rc;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> children)
     : conjunction_type_(type), children_(std::move(children))
@@ -337,6 +375,24 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
 
   bool default_value = (conjunction_type_ == Type::AND);
   value.set_boolean(default_value);
+  return rc;
+}
+
+RC ConjunctionExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
+{
+  RC rc = RC::SUCCESS;
+  for (auto &child : children_) {
+    rc = child->traverse_check(check_func);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to traverse check child expression in conjunction expr. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+  rc = check_func(this);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to check conjunction expr. rc=%s", strrc(rc));
+    return rc;
+  }
   return rc;
 }
 
@@ -579,6 +635,27 @@ RC ArithmeticExpr::try_get_value(Value &value) const
   return calc_value(left_value, right_value, value);
 }
 
+RC ArithmeticExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
+{
+  RC rc = RC::SUCCESS;
+  rc = left_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check left expression in arithmetic expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = right_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check right expression in arithmetic expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = check_func(this);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to check arithmetic expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  return rc;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, Expression *child)
@@ -666,6 +743,22 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
     type = Type::MIN;
   } else {
     rc = RC::INVALID_ARGUMENT;
+  }
+  return rc;
+}
+
+RC AggregateExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
+{
+  RC rc = RC::SUCCESS;
+  rc = child_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check child expression in aggregate expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = check_func(this);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to check aggregate expr. rc=%s", strrc(rc));
+    return rc;
   }
   return rc;
 }
@@ -819,24 +912,95 @@ RC VectorExpr::calc_inner_product(const Value &left, const Value &right, Value &
   return RC::SUCCESS;
 }
 
+RC VectorExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
+{
+  RC rc = RC::SUCCESS;
+  rc = left_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check left expression in vector expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = right_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check right expression in vector expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = check_func(this);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to check vector expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  return rc;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
-SubqueryExpr::SubqueryExpr(std::unique_ptr<ParsedSqlNode> parsed_sql_node)
+SubQueryExpr::SubQueryExpr(std::unique_ptr<ParsedSqlNode> parsed_sql_node)
     : parsed_sql_node_(std::move(parsed_sql_node))
 {}
 
-SubqueryExpr::~SubqueryExpr() = default;
+SubQueryExpr::~SubQueryExpr() = default;
 
-ExprType SubqueryExpr::type() const
+AttrType SubQueryExpr::value_type() const
+{
+  return parsed_sql_node_->selection.expressions[0]->value_type();
+}
+
+ExprType SubQueryExpr::type() const
 {
   return ExprType::SUBQUERY;
 }
 
-AttrType SubqueryExpr::value_type() const
+RC SubQueryExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  return AttrType::UNDEFINED;
+  //TODO
+  return RC::SUCCESS;
 }
 
-RC SubqueryExpr::get_value(const Tuple &tuple, Value &value) const
+RC SubQueryExpr::generate_select_stmt(Db *db)
 {
-  return RC::SUCCESS;
+  RC rc = RC::SUCCESS;
+  Stmt *stmt = nullptr;
+  rc = Stmt::create_stmt(db, *parsed_sql_node_, stmt);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create select stmt. rc=%s", strrc(rc));
+    return rc;
+  }
+  if (stmt->type() != StmtType::SELECT) {
+    LOG_WARN("the stmt type resolved from subquery is not select");
+    return RC::INTERNAL;
+  }
+  select_stmt_ = std::unique_ptr<SelectStmt>(static_cast<SelectStmt *>(stmt));
+  return rc;
+}
+
+RC SubQueryExpr::generate_logical_operator()
+{
+  RC rc = RC::SUCCESS;
+  rc = LogicalPlanGenerator::create(select_stmt_.get(), logical_operator_);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create logical operator. rc=%s", strrc(rc));
+    return rc;
+  }
+  return rc;
+}
+
+RC SubQueryExpr::generate_physical_operator()
+{
+  RC rc = RC::SUCCESS;
+  rc = PhysicalPlanGenerator::create(*logical_operator_, physical_operator_);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
+    return rc;
+  }
+  return rc;
+}
+
+RC SubQueryExpr::open(Trx *trx)
+{
+  return physical_operator_->open(trx);
+}
+
+RC SubQueryExpr::close()
+{
+  return physical_operator_->close();
 }

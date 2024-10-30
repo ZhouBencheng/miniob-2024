@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/optimizer/predicate_rewrite.h"
 #include "sql/operator/logical_operator.h"
+#include "sql/expr/expression.h"
 
 // 用于对谓词算子的父节点使用的重写规则
 RC PredicateRewriteRule::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)

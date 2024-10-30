@@ -198,42 +198,42 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
   return RC::SUCCESS;
 }
 
-RC PhysicalPlanGenerator::create_subquery_plan(std::unique_ptr<Expression> &expression)
-{
-  RC rc = RC::SUCCESS;
-  if (expression->type() == ExprType::CONJUNCTION) {
+// RC PhysicalPlanGenerator::create_subquery_plan(std::unique_ptr<Expression> &expression)
+// {
+//   RC rc = RC::SUCCESS;
+//   if (expression->type() == ExprType::CONJUNCTION) {
 
-    auto conjunction_expr = static_cast<ConjunctionExpr *>(expression.get());
-    for (auto &child : conjunction_expr->children()) {
-      rc = create_subquery_plan(child);
-      if (rc != RC::SUCCESS) {
-        LOG_WARN("failed to create subquery plan in conjunction expr. rc=%s", strrc(rc));
-        return rc;
-      }
-    }
-  } else if (expression->type() == ExprType::COMPARISON) {
+//     auto conjunction_expr = static_cast<ConjunctionExpr *>(expression.get());
+//     for (auto &child : conjunction_expr->children()) {
+//       rc = create_subquery_plan(child);
+//       if (rc != RC::SUCCESS) {
+//         LOG_WARN("failed to create subquery plan in conjunction expr. rc=%s", strrc(rc));
+//         return rc;
+//       }
+//     }
+//   } else if (expression->type() == ExprType::COMPARISON) {
 
-    auto comparison_expr = static_cast<ComparisonExpr *>(expression.get());
-    // in 表达式只有右边可能是子查询
-    rc = create_subquery_plan(comparison_expr->right());
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to create subquery plan in comparison expr. rc=%s", strrc(rc));
-      return rc;
-    }
-  } else if (expression->type() == ExprType::SUBQUERY) {
+//     auto comparison_expr = static_cast<ComparisonExpr *>(expression.get());
+//     // in 表达式只有右边可能是子查询
+//     rc = create_subquery_plan(comparison_expr->right());
+//     if (rc != RC::SUCCESS) {
+//       LOG_WARN("failed to create subquery plan in comparison expr. rc=%s", strrc(rc));
+//       return rc;
+//     }
+//   } else if (expression->type() == ExprType::SUBQUERY) {
 
-    auto subquery_expr = static_cast<SubqueryExpr *>(expression.get());
-    std::unique_ptr<PhysicalOperator> physical_operator;
-    rc = create(*(subquery_expr->logical_operator()), physical_operator);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to create subquery plan in subquery expr. rc=%s", strrc(rc));
-      return rc;
-    }
-    subquery_expr->set_physical_operator(std::move(physical_operator));
-  }
+//     auto subquery_expr = static_cast<SubqueryExpr *>(expression.get());
+//     std::unique_ptr<PhysicalOperator> physical_operator;
+//     rc = create(*(subquery_expr->logical_operator()), physical_operator);
+//     if (rc != RC::SUCCESS) {
+//       LOG_WARN("failed to create subquery plan in subquery expr. rc=%s", strrc(rc));
+//       return rc;
+//     }
+//     subquery_expr->set_physical_operator(std::move(physical_operator));
+//   }
 
-  return rc;
-}
+//   return rc;
+// }
 
 RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper, unique_ptr<PhysicalOperator> &oper)
 {
@@ -250,24 +250,30 @@ RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper, uniqu
   }
 
   vector<unique_ptr<Expression>> &expressions = pred_oper.expressions();
-  // ASSERT(expressions.size() == 1, "predicate logical operator's children should be 1");
+  std::unique_ptr<Expression>     expression  = nullptr;
   if (expressions.size() > 1) {
     unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, std::move(expressions)));
-    std::unique_ptr<Expression> expression = std::move(conjunction_expr); // 转变为父类
-    rc = create_subquery_plan(expression);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to create subquery plan in conjunction expr. rc=%s", strrc(rc));
-      return rc;
-    }
-    oper = unique_ptr<PhysicalOperator>(new PredicatePhysicalOperator(std::move(conjunction_expr)));
-  } else { // 谓词逻辑算子中只有一个表达式
-    rc = create_subquery_plan(expressions.front());
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to create subquery plan in predicate expr. rc=%s", strrc(rc));
-      return rc;
-    }
-    oper = unique_ptr<PhysicalOperator>(new PredicatePhysicalOperator(std::move(expressions.front())));
+
+    expression = std::move(conjunction_expr);
+  } else { 
+    expression = std::move(expressions.front());
   }
+
+  auto check_and_process_subquery = [](Expression *expr) -> RC {
+    RC rc = RC::SUCCESS;
+    if (expr->type() == ExprType::SUBQUERY) {
+      auto   subquery_expr = static_cast<SubQueryExpr *>(expr);
+      return subquery_expr->generate_physical_operator();
+    }
+    return rc;
+  };
+  rc = expression->traverse_check(check_and_process_subquery);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check expression in predicate logical operator. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new PredicatePhysicalOperator(std::move(expression)));
   oper->add_child(std::move(child_phy_oper));
   return rc;
 }

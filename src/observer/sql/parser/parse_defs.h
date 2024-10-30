@@ -56,6 +56,10 @@ enum CompOp
   NOT_LIKE_COMP,
   IS_COMP,
   IS_NOT_COMP,
+  IN_COMP,
+  NOT_IN_COMP,
+  EXISTS_COMP,
+  NOT_EXISTS_COMP,
   NO_OP, 
   
 };

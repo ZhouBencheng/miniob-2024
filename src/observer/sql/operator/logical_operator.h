@@ -52,7 +52,7 @@ enum class LogicalOperatorType
 class LogicalOperator
 {
 public:
-  LogicalOperator() = default;
+  LogicalOperator();
   virtual ~LogicalOperator();
 
   virtual LogicalOperatorType type() const = 0;
