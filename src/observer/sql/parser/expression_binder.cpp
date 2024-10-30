@@ -548,7 +548,7 @@ RC ExpressionBinder::bind_subquery_expression(
   RC rc = RC::SUCCESS;
   auto subquery_expr = static_cast<SubQueryExpr *>(expr.get());
 
-  rc = subquery_expr->generate_select_stmt(db_);
+  rc = subquery_expr->generate_select_stmt(db_, context_);
   if (rc != RC::SUCCESS) {
     LOG_WARN("Fail to generate select stmt when binding subquery expression");
     return rc;

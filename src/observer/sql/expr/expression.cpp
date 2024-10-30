@@ -22,7 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/physical_operator.h"
 #include "sql/optimizer/logical_plan_generator.h"
 #include "sql/optimizer/physical_plan_generator.h"
-#include "expression.h"
+#include "sql/parser/expression_binder.h"
 
 using namespace std;
 
@@ -232,23 +232,77 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
   Value left_value;
   Value right_value;
+  RC rc = RC::SUCCESS;
+  SubQueryExpr *left_subquery_expr = nullptr;
+  SubQueryExpr *right_subquery_expr = nullptr;
 
-  RC rc = left_->get_value(tuple, left_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression in comparison. rc=%s", strrc(rc));
-    return rc;
+  if (left_->type() == ExprType::SUBQUERY) {
+    left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
+    left_subquery_expr->open(nullptr);
   }
-  rc = right_->get_value(tuple, right_value);
+  if (right_->type() == ExprType::SUBQUERY) {
+    right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
+    right_subquery_expr->open(nullptr);
+  }
+
+  if (comp_ == EXISTS_COMP || comp_ == NOT_EXISTS_COMP) { // 在exists运算中，右表达式为空
+    if (right_ != nullptr) {
+      LOG_WARN("right expression should be null in EXISTS or NOT EXISTS comparison.");
+      return RC::INVALID_ARGUMENT;
+    }
+    bool have_row = left_subquery_expr->have_row(&tuple);
+    value.set_boolean(comp_ == EXISTS_COMP ? have_row : !have_row);
+    return RC::SUCCESS;
+  }
+
+  left_->get_value(tuple, left_value); // 获取左表达式的值
+  if (left_subquery_expr && left_subquery_expr->have_row(&tuple)) {
+    LOG_WARN("left expression is a subquery but output multiple rows in comparison.");
+    return RC::INVALID_ARGUMENT;
+  }
+
+  if (comp_ == IN_COMP || comp_ == NOT_IN_COMP) {
+    if (left_value.attr_type() == AttrType::NULLS) { // 当左表达式为空时，无论如何当前in计算为false
+      value.set_boolean(false);
+      return RC::SUCCESS;
+    }
+
+    bool have_null = false;
+    bool match     = false;
+    while (RC::SUCCESS == (rc = right_->get_value(tuple, right_value))) {
+      if (right_value.attr_type() == AttrType::NULLS) {
+        have_null = true;
+      } else if (left_value.compare(right_value) == 0) {
+        match = true;
+      }
+    }
+    value.set_boolean(comp_ == IN_COMP ? match : (have_null ? false : !match));
+    return rc == RC::RECORD_EOF ? RC::SUCCESS : rc;
+  }
+
+  /* 以下部分为子查询以外普通表达式的比较计算 */
+  rc = right_->get_value(tuple, right_value); // 非子查询运算中还没获取到右表达式的值
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression in comparison. rc=%s", strrc(rc));
     return rc;
   }
+  if (right_subquery_expr && right_subquery_expr->have_row(&tuple)) { // 在非in非exists运算中，右子表达式只能输出一个值
+    LOG_WARN("right expression is a subquery but output multiple rows in comparison.");
+    return RC::INVALID_ARGUMENT;
+  }
 
   bool bool_value = false;
-
   rc = compare_value(left_value, right_value, bool_value);
   if (rc == RC::SUCCESS) {
     value.set_boolean(bool_value);
+  }
+
+  // 关闭子查询算子
+  if (left_subquery_expr) {
+    left_subquery_expr->close();
+  }
+  if (right_subquery_expr) {
+    right_subquery_expr->close();
   }
   return rc;
 }
@@ -942,7 +996,7 @@ SubQueryExpr::~SubQueryExpr() = default;
 
 AttrType SubQueryExpr::value_type() const
 {
-  return parsed_sql_node_->selection.expressions[0]->value_type();
+  return select_stmt_->query_expressions()[0]->value_type();
 }
 
 ExprType SubQueryExpr::type() const
@@ -952,15 +1006,29 @@ ExprType SubQueryExpr::type() const
 
 RC SubQueryExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  //TODO
-  return RC::SUCCESS;
+  physical_operator_->set_parent_tuple(&tuple); // 为子查询的算子树中每一个算子设置父查询中当前得到的元组
+  RC rc = physical_operator_->next();
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to get next tuple in subquery expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  Tuple *current_tuple = physical_operator_->current_tuple();
+  // 当查询结果中存在多列value为无效子查询
+  if (current_tuple->cell_num() != 1) {
+    LOG_WARN("the subquery result has multiple columns.");
+    return RC::INVALID_ARGUMENT;
+  } 
+  // 在tuple组中，find_cell()方法用于根据TuplCellSpec类型中的表和字段元数据来得到对应索引下的value
+  // cell_at()方法为find_cell()方法调用，用于直接根据索引获取当前tuple下对应索引的值
+  return current_tuple->cell_at(0, value); // 直接获取结果元组中第一个字段的值
 }
 
-RC SubQueryExpr::generate_select_stmt(Db *db)
+RC SubQueryExpr::generate_select_stmt(Db *db, const BinderContext &binder_context)
 {
   RC rc = RC::SUCCESS;
   Stmt *stmt = nullptr;
-  rc = Stmt::create_stmt(db, *parsed_sql_node_, stmt);
+  // rc = Stmt::create_stmt(db, *parsed_sql_node_, stmt);
+  rc = SelectStmt::create(db, parsed_sql_node_->selection, stmt, binder_context);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create select stmt. rc=%s", strrc(rc));
     return rc;
@@ -993,6 +1061,13 @@ RC SubQueryExpr::generate_physical_operator()
     return rc;
   }
   return rc;
+}
+
+bool SubQueryExpr::have_row(const Tuple *parent_tuple) const
+{
+  physical_operator_->set_parent_tuple(parent_tuple);
+
+  return physical_operator_->next() != RC::RECORD_EOF;
 }
 
 RC SubQueryExpr::open(Trx *trx)

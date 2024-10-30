@@ -20,12 +20,12 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "sql/stmt/stmt.h"
 #include "storage/field/field.h"
+#include "sql/parser/expression_binder.h"
 
 class FieldMeta;
 class FilterStmt;
 class Db;
 class Table;
-class BinderContext;
 
 /**
  * @brief 表示select语句
@@ -64,7 +64,7 @@ public:
   StmtType type() const override { return StmtType::SELECT; }
 
 public:
-  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt);
+  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const BinderContext &parent_binder_context = BinderContext()); // 默认构造为空BinderContext
 
 public:
   const std::vector<JoinTable> &join_tables() const { return join_tables_; }

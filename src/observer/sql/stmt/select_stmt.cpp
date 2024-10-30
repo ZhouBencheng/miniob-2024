@@ -18,7 +18,6 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
-#include "sql/parser/expression_binder.h"
 
 using namespace std;
 using namespace common;
@@ -111,14 +110,14 @@ RC SelectStmt::handle_from_clause(Db       *db,
   return RC::SUCCESS;
 }
 
-RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
+RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const BinderContext &parent_binder_context)
 {
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
     return RC::INVALID_ARGUMENT;
   }
 
-  BinderContext binder_context;
+  BinderContext binder_context = parent_binder_context; // 在子查询的解析中，获取父查询的表达式绑定背景
 
   // collect tables in `from` statement
   vector<Table *>                tables;
