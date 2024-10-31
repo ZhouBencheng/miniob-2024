@@ -359,7 +359,11 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
 
   std::unique_ptr<Expression> &expr = update_oper.expr();
   if (expr->type() == ExprType::SUBQUERY) {
-    static_cast<SubQueryExpr *>(expr.get())->generate_physical_operator();
+    RC rc = static_cast<SubQueryExpr *>(expr.get())->generate_physical_operator();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to generate sub query physical operator in update stmt. rc=%s", strrc(rc));
+      return rc;
+    }
   }
 
   oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(),

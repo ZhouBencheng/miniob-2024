@@ -379,7 +379,11 @@ RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<Logical
   }
 
   if (expr->type() == ExprType::SUBQUERY) {
-    static_cast<SubQueryExpr *>(expr.get())->generate_logical_operator();
+    RC rc = static_cast<SubQueryExpr *>(expr.get())->generate_logical_operator();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to generate sub query logical operator in update stmt. rc=%s", strrc(rc));
+      return rc;
+    }
   }
 
   unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, field, std::move(expr), value_amount));

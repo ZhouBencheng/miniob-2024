@@ -56,7 +56,11 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
   expression_binder.set_default_table(table);
 
   if (update.expr->type() == ExprType::SUBQUERY) {
-    static_cast<SubQueryExpr *>(update.expr.get())->generate_select_stmt(db, binder_context);
+    RC rc = static_cast<SubQueryExpr *>(update.expr.get())->generate_select_stmt(db, binder_context);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to generate sub query select stmt in update stmt. rc=%d:%s", rc, strrc(rc));
+      return rc;
+    }
   }
 
   // FilterStmt::create函数：当condition中不存在过滤条件时，依然将filter_stmt指针构造为一个空的FilterStmt对象
