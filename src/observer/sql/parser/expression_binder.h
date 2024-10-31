@@ -47,6 +47,8 @@ public:
   ExpressionBinder(BinderContext &context, Db *db) : db_(db), context_(context) {}
   virtual ~ExpressionBinder() = default;
 
+  void set_default_table(Table *table) { default_table_ = table; }
+
   RC bind_expression(std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
 
 private:
@@ -77,5 +79,6 @@ private:
 
 private:
   Db            *db_;
+  Table         *default_table_ = nullptr;
   BinderContext &context_;
 };

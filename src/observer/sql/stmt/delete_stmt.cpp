@@ -51,7 +51,7 @@ RC DeleteStmt::create(Db *db, DeleteSqlNode &delete_sql, Stmt *&stmt)
   BinderContext binder_context;
   binder_context.add_table(table);
   ExpressionBinder expression_binder(binder_context, db);
-
+  expression_binder.set_default_table(table);
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(
       db, table, &table_map, expression_binder, delete_sql.conditions.data(), static_cast<int>(delete_sql.conditions.size()), filter_stmt);

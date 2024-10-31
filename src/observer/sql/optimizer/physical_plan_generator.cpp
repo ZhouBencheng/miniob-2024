@@ -357,9 +357,14 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
     }
   }
 
+  std::unique_ptr<Expression> &expr = update_oper.expr();
+  if (expr->type() == ExprType::SUBQUERY) {
+    static_cast<SubQueryExpr *>(expr.get())->generate_physical_operator();
+  }
+
   oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(),
       update_oper.field(),
-      update_oper.values(),
+      std::move(expr),
       update_oper.value_amount()));
   LOG_TRACE("create an update physical operator");
 

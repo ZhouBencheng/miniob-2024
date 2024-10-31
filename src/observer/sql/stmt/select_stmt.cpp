@@ -154,6 +154,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const Bind
   Table *default_table = nullptr;
   if (tables.size() == 1) {
     default_table = tables[0];
+    expression_binder.set_default_table(default_table);
   }
 
   // create filter statement in `where` statement

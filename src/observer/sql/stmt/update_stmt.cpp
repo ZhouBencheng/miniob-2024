@@ -18,8 +18,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table.h"
 #include <sql/parser/expression_binder.h>
 
-UpdateStmt::UpdateStmt(Table *table, Field *field, const Value *values, int value_amount, FilterStmt* filter)
-    : table_(table), field_(field), values_(values),  filter_(filter), value_amount_(value_amount)
+UpdateStmt::UpdateStmt(Table *table, Field *field, std::unique_ptr<Expression> expr, int value_amount, FilterStmt* filter)
+    : table_(table), field_(field), expr_(std::move(expr)),  filter_(filter), value_amount_(value_amount)
 {}
 
 RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
@@ -53,6 +53,11 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
   BinderContext binder_context;
   binder_context.add_table(table);
   ExpressionBinder expression_binder(binder_context, db);
+  expression_binder.set_default_table(table);
+
+  if (update.expr->type() == ExprType::SUBQUERY) {
+    static_cast<SubQueryExpr *>(update.expr.get())->generate_select_stmt(db, binder_context);
+  }
 
   // FilterStmt::create函数：当condition中不存在过滤条件时，依然将filter_stmt指针构造为一个空的FilterStmt对象
   FilterStmt *filter_stmt = nullptr;
@@ -70,7 +75,7 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
     return rc;
   }
 
-  stmt = new UpdateStmt(table, field, &update.value, /* update仅对一个属性更新 */1, filter_stmt);
+  stmt = new UpdateStmt(table, field, std::move(update.expr), /* update仅对一个属性更新 */1, filter_stmt);
 
   return RC::SUCCESS;
 }

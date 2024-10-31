@@ -362,11 +362,11 @@ RC LogicalPlanGenerator::create_plan(ExplainStmt *explain_stmt, unique_ptr<Logic
 
 RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<LogicalOperator> &logical_operator) 
 {
-  Table       *table        = update_stmt->table();
-  Field       *field        = update_stmt->field();
-  FilterStmt  *filter_stmt  = update_stmt->filter_stmt();
-  const Value *values       = update_stmt->values();
-  int          value_amount = update_stmt->value_amount();
+  Table       *table                = update_stmt->table();
+  Field       *field                = update_stmt->field();
+  FilterStmt  *filter_stmt          = update_stmt->filter_stmt();
+  std::unique_ptr<Expression> &expr = update_stmt->expr();
+  int          value_amount         = update_stmt->value_amount();
   unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
 
   // 构建过滤算子，注意即使filter_stmt为空也会构造一个空的谓词算子，且返回RC::SUCCESS
@@ -378,7 +378,11 @@ RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<Logical
     return rc;
   }
 
-  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, field, values, value_amount));
+  if (expr->type() == ExprType::SUBQUERY) {
+    static_cast<SubQueryExpr *>(expr.get())->generate_logical_operator();
+  }
+
+  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, field, std::move(expr), value_amount));
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));
     update_oper->add_child(std::move(predicate_oper));

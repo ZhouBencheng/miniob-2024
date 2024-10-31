@@ -275,6 +275,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 
   rc = get_real_value(left_, left_value); // 获取左表达式的值
   if (left_subquery_expr && left_subquery_expr->have_row(&tuple)) {
+    value.set_boolean(false);
     LOG_WARN("left expression is a subquery but output multiple rows in comparison.");
     return RC::INVALID_ARGUMENT;
   }
@@ -302,8 +303,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     return rc == RC::RECORD_EOF ? RC::SUCCESS : rc;
   }
 
-  /* 以下部分为子查询以外普通表达式的比较计算 */
-  rc = get_real_value(right_, right_value); // 非子查询运算中还没获取到右表达式的值
+  rc = get_real_value(right_, right_value);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression in comparison. rc=%s", strrc(rc));
     return rc;

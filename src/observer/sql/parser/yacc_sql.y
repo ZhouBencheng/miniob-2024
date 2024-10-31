@@ -511,13 +511,7 @@ update_stmt:      /*  update 语句的语法解析树*/
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
       $$->update.attribute_name = $4;
-      Value value;
-      if ($6->try_get_value(value) == RC::SUCCESS) {
-        $$->update.value = value;
-      } else {
-        yyerror(&@$, sql_string, sql_result, scanner, "Failed to convert expression to value in update statement");
-        YYERROR;
-      }
+      $$->update.expr.reset($6);
       if ($7 != nullptr) {
         $$->update.conditions.swap(*$7);
         delete $7;
