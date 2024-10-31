@@ -57,6 +57,11 @@ public:
    */
   RC flush();
 
+  /**
+   * @brief 清空缓存
+   */
+  void clear_buffer() { buffer_.clear(); }
+
 private:
   /**
    * @brief 刷新缓存

@@ -246,7 +246,9 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   }
 
   if (OB_FAIL(rc)) {
-    return rc;
+    event->sql_result()->set_return_code(rc);
+    writer_->clear_buffer();
+    return write_state(event, need_disconnect);
   }
 
   if (cell_num == 0) {

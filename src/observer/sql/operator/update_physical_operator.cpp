@@ -22,13 +22,13 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
     while(OB_SUCC(rc = child->next())) { // 遍历下层算子提供的记录
         Tuple *tuple = child->current_tuple();
-        std::unique_ptr<Value> value;
-        RC rc = expr_->get_value(*tuple, *value);
+        Value value;
+        RC rc = expr_->get_value(*tuple, value);
         if (rc != RC::SUCCESS) {
             LOG_WARN("failed to get value from tuple in update stmt. rc=%s", strrc(rc));
             return rc;
         }
-        values_.emplace_back(std::move(value));
+        values_.emplace_back(make_unique<Value>(value));
 
         if (nullptr == tuple) {
             LOG_WARN("failed to get current record: %s", strrc(rc));
