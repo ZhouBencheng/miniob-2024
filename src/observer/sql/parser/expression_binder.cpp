@@ -108,6 +108,10 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
       return bind_subquery_expression(expr, bound_expressions);
     } break;
 
+    case ExprType::EXPR_LIST: {
+      return bind_expr_list_expression(expr, bound_expressions);
+    } break;
+
     default: {
       LOG_WARN("unknown expression type: %d", static_cast<int>(expr->type()));
       return RC::INTERNAL;
@@ -553,6 +557,24 @@ RC ExpressionBinder::bind_subquery_expression(
     LOG_WARN("Fail to generate select stmt when binding subquery expression");
     return rc;
   }
+  bound_expressions.emplace_back(std::move(expr));
+  return rc;
+}
+
+RC ExpressionBinder::bind_expr_list_expression(
+    std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &bound_expressions)
+{
+  RC rc = RC::SUCCESS;
+  auto expr_list_expr = static_cast<ExprListExpr *>(expr.get());
+  std::vector<std::unique_ptr<Expression>> children;
+  for (auto &expr : expr_list_expr->expressions()) {
+    rc = bind_expression(expr, children);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to bind child expression in expr list");
+      return rc;
+    }
+  }
+  expr_list_expr->set_expressions(std::move(children));
   bound_expressions.emplace_back(std::move(expr));
   return rc;
 }

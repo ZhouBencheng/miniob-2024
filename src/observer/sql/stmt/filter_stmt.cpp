@@ -113,6 +113,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   }
   filter_unit->set_left(std::move(bound_expressions[0]));
   filter_unit->set_right(std::move(bound_expressions[1]));
+
   filter_unit->set_comp(comp);
 
   // 检查两个类型是否能够比较

@@ -50,6 +50,7 @@ enum class ExprType
   AGGREGATION,  ///< 聚合运算
   VECTOR_FUNC,  ///< 向量运算
   SUBQUERY,     ///< 子查询
+  EXPR_LIST,    ///< 表达式列表
 };
 
 /**
@@ -638,4 +639,30 @@ private:
   std::unique_ptr<SelectStmt>       select_stmt_;
   std::unique_ptr<LogicalOperator>  logical_operator_;
   std::unique_ptr<PhysicalOperator> physical_operator_;
+};
+
+
+class ExprListExpr : public Expression
+{
+public:
+  ExprListExpr(std::vector<std::unique_ptr<Expression>> expressions);
+  virtual ~ExprListExpr();
+
+  ExprType type() const override { return ExprType::EXPR_LIST; }
+  AttrType value_type() const override;
+
+  RC get_value(const Tuple &tuple, Value &value) const override;
+
+  void reset() { idx_ = 0; }
+
+  std::unique_ptr<Expression> clone() const override;
+  RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
+public:
+  std::vector<std::unique_ptr<Expression>> &expressions() { return expressions_; }
+  void set_expressions(std::vector<std::unique_ptr<Expression>> expressions) { expressions_ = std::move(expressions); }
+
+private:
+  int idx_ = 0;
+  std::vector<std::unique_ptr<Expression>> expressions_;
 };

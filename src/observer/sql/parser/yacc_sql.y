@@ -642,8 +642,12 @@ expression:
     | expression '/' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
     }
-    | LBRACE expression RBRACE {
-      $$ = $2;
+    | LBRACE expression_list RBRACE {
+      if ($2->size() == 1) {
+        $$ = $2->at(0).get();
+      } else {
+        $$ = new ExprListExpr(std::move(*$2));
+      }
       $$->set_name(token_name(sql_string, &@$));
     }
     | '-' expression %prec UMINUS { // 此处用于匹配取反运算
@@ -756,11 +760,21 @@ condition:
     | EXISTS expression {
       $$ = new ConditionSqlNode;
       $$->left_expression.reset($2);
+
+      Value value;
+      value.set_type(AttrType::NULLS);
+      $$->right_expression.reset(new ValueExpr(value));
+
       $$->comp = EXISTS_COMP;
     }
     | NOT EXISTS expression {
       $$ = new ConditionSqlNode;
       $$->left_expression.reset($3);
+
+      Value value;
+      value.set_type(AttrType::NULLS);
+      $$->right_expression.reset(new ValueExpr(value));
+
       $$->comp = NOT_EXISTS_COMP;
     }
     ;

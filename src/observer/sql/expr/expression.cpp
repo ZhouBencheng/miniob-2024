@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/logical_plan_generator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/parser/expression_binder.h"
+#include "common/lang/defer.h"
 
 using namespace std;
 
@@ -236,26 +237,43 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
   SubQueryExpr *left_subquery_expr = nullptr;
   SubQueryExpr *right_subquery_expr = nullptr;
 
-  if (left_->type() == ExprType::SUBQUERY) {
-    left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
-    left_subquery_expr->open(nullptr);
-  }
-  if (right_->type() == ExprType::SUBQUERY) {
-    right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
-    right_subquery_expr->open(nullptr);
-  }
+  DEFER({
+    if (left_subquery_expr) {
+      left_subquery_expr->close();
+    }
+    if (right_subquery_expr) {
+      right_subquery_expr->close();
+    }
+  });
+
+  auto open_subquery_expr = [](const std::unique_ptr<Expression> &expr) {
+    SubQueryExpr *ret = nullptr;
+    if (expr->type() == ExprType::SUBQUERY) {
+      ret = static_cast<SubQueryExpr *>(expr.get());
+      ret->open(nullptr);
+    }
+    return ret;
+  };
+
+  left_subquery_expr  = open_subquery_expr(left_);
+  right_subquery_expr = open_subquery_expr(right_);
 
   if (comp_ == EXISTS_COMP || comp_ == NOT_EXISTS_COMP) { // 在exists运算中，右表达式为空
-    if (right_ != nullptr) {
-      LOG_WARN("right expression should be null in EXISTS or NOT EXISTS comparison.");
-      return RC::INVALID_ARGUMENT;
-    }
-    bool have_row = left_subquery_expr->have_row(&tuple);
-    value.set_boolean(comp_ == EXISTS_COMP ? have_row : !have_row);
-    return RC::SUCCESS;
+    rc = left_subquery_expr->get_value(tuple, left_value);
+    value.set_boolean(comp_ == EXISTS_COMP ? rc == RC::SUCCESS : rc == RC::RECORD_EOF);
+    return RC::RECORD_EOF == rc ? RC::SUCCESS : rc;
   }
 
-  left_->get_value(tuple, left_value); // 获取左表达式的值
+  auto get_real_value = [&tuple](const unique_ptr<Expression> &expr, Value &value) {
+    RC rc = expr->get_value(tuple, value);
+    if (expr->type() == ExprType::SUBQUERY && rc == RC::RECORD_EOF) {
+      value.set_type(AttrType::NULLS);
+      return RC::SUCCESS;
+    }
+    return rc;
+  };
+
+  rc = get_real_value(left_, left_value); // 获取左表达式的值
   if (left_subquery_expr && left_subquery_expr->have_row(&tuple)) {
     LOG_WARN("left expression is a subquery but output multiple rows in comparison.");
     return RC::INVALID_ARGUMENT;
@@ -265,6 +283,10 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     if (left_value.attr_type() == AttrType::NULLS) { // 当左表达式为空时，无论如何当前in计算为false
       value.set_boolean(false);
       return RC::SUCCESS;
+    }
+
+    if (right_->type() == ExprType::EXPR_LIST) {
+      static_cast<ExprListExpr *>(right_.get())->reset();
     }
 
     bool have_null = false;
@@ -281,7 +303,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
   }
 
   /* 以下部分为子查询以外普通表达式的比较计算 */
-  rc = right_->get_value(tuple, right_value); // 非子查询运算中还没获取到右表达式的值
+  rc = get_real_value(right_, right_value); // 非子查询运算中还没获取到右表达式的值
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression in comparison. rc=%s", strrc(rc));
     return rc;
@@ -297,13 +319,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     value.set_boolean(bool_value);
   }
 
-  // 关闭子查询算子
-  if (left_subquery_expr) {
-    left_subquery_expr->close();
-  }
-  if (right_subquery_expr) {
-    right_subquery_expr->close();
-  }
   return rc;
 }
 
@@ -1012,15 +1027,9 @@ RC SubQueryExpr::get_value(const Tuple &tuple, Value &value) const
     LOG_WARN("failed to get next tuple in subquery expr. rc=%s", strrc(rc));
     return rc;
   }
-  Tuple *current_tuple = physical_operator_->current_tuple();
-  // 当查询结果中存在多列value为无效子查询
-  if (current_tuple->cell_num() != 1) {
-    LOG_WARN("the subquery result has multiple columns.");
-    return RC::INVALID_ARGUMENT;
-  } 
   // 在tuple组中，find_cell()方法用于根据TuplCellSpec类型中的表和字段元数据来得到对应索引下的value
   // cell_at()方法为find_cell()方法调用，用于直接根据索引获取当前tuple下对应索引的值
-  return current_tuple->cell_at(0, value); // 直接获取结果元组中第一个字段的值
+  return physical_operator_->current_tuple()->cell_at(0, value); // 直接获取结果元组中第一个字段的值
 }
 
 RC SubQueryExpr::generate_select_stmt(Db *db, const BinderContext &binder_context)
@@ -1038,6 +1047,11 @@ RC SubQueryExpr::generate_select_stmt(Db *db, const BinderContext &binder_contex
     return RC::INTERNAL;
   }
   select_stmt_ = std::unique_ptr<SelectStmt>(static_cast<SelectStmt *>(stmt));
+  // 当查询结果中存在多列value为无效子查询
+  if (select_stmt_->query_expressions().size() > 1) {
+    LOG_WARN("the subquery result has multiple columns.");
+    return RC::INVALID_ARGUMENT;
+  }
   return rc;
 }
 
@@ -1078,4 +1092,46 @@ RC SubQueryExpr::open(Trx *trx)
 RC SubQueryExpr::close()
 {
   return physical_operator_->close();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+ExprListExpr::ExprListExpr(std::vector<std::unique_ptr<Expression>> expressions)
+    : expressions_(std::move(expressions))
+{}
+
+ExprListExpr::~ExprListExpr() = default;
+
+AttrType ExprListExpr::value_type() const
+{
+  return expressions_.front()->value_type();
+}
+
+RC ExprListExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
+{
+  RC rc = RC::SUCCESS;
+  for (auto &expr : expressions_) {
+    rc = expr->traverse_check(check_func);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+  }
+  check_func(this);
+  return rc;
+}
+
+std::unique_ptr<Expression> ExprListExpr::clone() const
+{
+  std::vector<std::unique_ptr<Expression>> cloned_expressions;
+  for (auto &expr : expressions_) {
+    cloned_expressions.emplace_back(expr->clone());
+  }
+  return std::make_unique<ExprListExpr>(std::move(cloned_expressions));
+}
+
+RC ExprListExpr::get_value(const Tuple &tuple, Value &value) const
+{
+  if (idx_ >= expressions_.size()) {
+    return RC::RECORD_EOF;
+  }
+  return expressions_[const_cast<int&>(idx_)++]->get_value(tuple, value);
 }

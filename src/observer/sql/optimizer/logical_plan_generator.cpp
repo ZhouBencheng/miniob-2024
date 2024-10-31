@@ -236,8 +236,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
         auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
 
         // 当右子表达式为子查询时，需要将左子表达式转化为右边的类型
-        if ((left_to_right_cost <= right_to_left_cost || right->type() == ExprType::SUBQUERY) && 
-            left_to_right_cost != INT32_MAX) {
+        if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
 
           ExprType left_type = left->type();
           auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
@@ -271,18 +270,19 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
           return rc;
         }
       } 
-      // 下述检查并处理左右子表达式中是子查询的情况
-      rc = check_and_process_subquery_expr(left);
-      if (rc != RC::SUCCESS) {
-        LOG_WARN("failed to check and process subquery expr. rc=%s", strrc(rc));
-        return rc;
-      }
+    }
 
-      rc = check_and_process_subquery_expr(right);
-      if (rc != RC::SUCCESS) {
-        LOG_WARN("failed to check and process subquery expr. rc=%s", strrc(rc));
-        return rc;
-      }
+    // 下述检查并处理左右子表达式中是子查询的情况
+    rc = check_and_process_subquery_expr(left);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to check and process subquery expr. rc=%s", strrc(rc));
+      return rc;
+    }
+
+    rc = check_and_process_subquery_expr(right);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to check and process subquery expr. rc=%s", strrc(rc));
+      return rc;
     }
 
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));

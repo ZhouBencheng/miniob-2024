@@ -72,6 +72,8 @@ private:
       std::unique_ptr<Expression> &unbound_vector_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
   RC bind_subquery_expression(
       std::unique_ptr<Expression> &subquery_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+  RC bind_expr_list_expression(
+      std::unique_ptr<Expression> &expr_list_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
 
 private:
   Db            *db_;
