@@ -712,10 +712,12 @@ RC ArithmeticExpr::traverse_check(const std::function<RC(Expression *)> &check_f
     LOG_WARN("failed to traverse check left expression in arithmetic expr. rc=%s", strrc(rc));
     return rc;
   }
-  rc = right_->traverse_check(check_func);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to traverse check right expression in arithmetic expr. rc=%s", strrc(rc));
-    return rc;
+  if (arithmetic_type_ != Type::NEGATIVE) { 
+    rc = right_->traverse_check(check_func);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to traverse check right expression in arithmetic expr. rc=%s", strrc(rc));
+      return rc;
+    }
   }
   rc = check_func(this);
   if (rc != RC::SUCCESS) {
