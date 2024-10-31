@@ -45,6 +45,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/operator/update_logical_operator.h"
 #include "sql/operator/update_physical_operator.h"
+#include "src/observer/storage/index/bplus_tree.h"
 
 using namespace std;
 
@@ -135,6 +136,8 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
 
   Index     *index      = nullptr;
   ValueExpr *value_expr = nullptr;
+  std::vector<const char*> all_field;
+
   for (auto &expr : predicates) {
     if (expr->type() == ExprType::COMPARISON) {
       auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
@@ -170,6 +173,7 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
       if (nullptr != index) {
         break;
       }
+
     }
   }
 
