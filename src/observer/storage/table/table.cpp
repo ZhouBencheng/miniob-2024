@@ -353,7 +353,7 @@ RC Table::update_record(Record &record, const Value &value, const FieldMeta *fie
       rc = this->set_value_to_record(record.data(), real_value, field);
       LOG_WARN("field type mismatch. table name:%s,field name:%s,value:%s ",
           table_meta_.name(), field->name(), value.to_string().c_str());
-      return RC::SCHEMA_FIELD_MISSING;
+      return rc;
     } else {
       rc = this->set_value_to_record(record.data(), value, field);
     }
