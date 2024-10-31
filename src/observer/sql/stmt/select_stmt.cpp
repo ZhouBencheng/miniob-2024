@@ -132,6 +132,12 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const Bind
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
   ExpressionBinder expression_binder(binder_context, db);
+
+  Table *default_table = nullptr;
+  if (tables.size() == 1) {
+    default_table = tables[0];
+    expression_binder.set_default_table(default_table);
+  }
   
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
     RC rc = expression_binder.bind_expression(expression, bound_expressions);
@@ -148,13 +154,6 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const Bind
       LOG_INFO("bind group by clause expression failed. rc=%s", strrc(rc));
       return rc;
     }
-  }
-
-  // 当FROM中不止一个表，则默认表不存在，默认表用于指定WHERE中未给出表名的属性的表
-  Table *default_table = nullptr;
-  if (tables.size() == 1) {
-    default_table = tables[0];
-    expression_binder.set_default_table(default_table);
   }
 
   // create filter statement in `where` statement
