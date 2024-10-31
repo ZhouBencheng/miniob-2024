@@ -343,14 +343,14 @@ RC Table::update_record(Record &record, const Value &value, const FieldMeta *fie
   } else {
     // 取消类型转换
     if (value.attr_type() != field->type()) {
-      // Value real_value;
-      // rc = Value::cast_to(value, field->type(), real_value);
-      // if (OB_FAIL(rc)) {
-      //   LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
-      //       table_meta_.name(), field->name(), value.to_string().c_str());
-      //   return rc;
-      // }
-      // rc = this->set_value_to_record(record.data(), real_value, field);
+      Value real_value;
+      rc = Value::cast_to(value, field->type(), real_value);
+      if (OB_FAIL(rc)) {
+        LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
+            table_meta_.name(), field->name(), value.to_string().c_str());
+        return rc;
+      }
+      rc = this->set_value_to_record(record.data(), real_value, field);
       LOG_WARN("field type mismatch. table name:%s,field name:%s,value:%s ",
           table_meta_.name(), field->name(), value.to_string().c_str());
       return RC::SCHEMA_FIELD_MISSING;
