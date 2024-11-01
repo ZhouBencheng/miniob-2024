@@ -246,18 +246,26 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     }
   });
 
-  auto open_subquery_expr = [&tuple](const std::unique_ptr<Expression> &expr) {
+  auto open_subquery_expr = [&tuple](const std::unique_ptr<Expression> &expr, RC &rc) {
     SubQueryExpr *ret = nullptr;
     if (expr->type() == ExprType::SUBQUERY) {
       ret = static_cast<SubQueryExpr *>(expr.get());
       ret->physical_operator()->set_parent_tuple(&tuple);
-      ret->open(nullptr);
+      rc = ret->open(nullptr);
     }
     return ret;
   };
 
-  left_subquery_expr  = open_subquery_expr(left_);
-  right_subquery_expr = open_subquery_expr(right_);
+  left_subquery_expr  = open_subquery_expr(left_, rc);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to open left subquery expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  right_subquery_expr = open_subquery_expr(right_, rc);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to open right subquery expr. rc=%s", strrc(rc));
+    return rc;
+  }
 
   if (comp_ == EXISTS_COMP || comp_ == NOT_EXISTS_COMP) { // 在exists运算中，右表达式为空
     rc = left_subquery_expr->get_value(tuple, left_value);
