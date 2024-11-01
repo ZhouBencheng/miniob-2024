@@ -23,11 +23,29 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     while(OB_SUCC(rc = child->next())) { // 遍历下层算子提供的记录
         Tuple *tuple = child->current_tuple();
         Value value;
-        RC rc = expr_->get_value(*tuple, value);
-        if (rc != RC::SUCCESS) {
-            LOG_WARN("failed to get value from tuple in update stmt. rc=%s", strrc(rc));
-            return rc;
+
+        if (expr_->type() == ExprType::SUBQUERY) { // 若赋值目标为子查询，则需要先打开子查询
+            SubQueryExpr *subquery_expr = static_cast<SubQueryExpr *>(expr_.get());
+            subquery_expr->physical_operator()->set_parent_tuple(tuple);
+            rc = subquery_expr->open(nullptr);
+            if (rc != RC::SUCCESS) {
+                LOG_WARN("failed to open subquery expr. rc=%s", strrc(rc));
+                return rc;
+            }
+            rc = subquery_expr->get_value(*tuple, value);
+            if (rc != RC::SUCCESS) {
+                LOG_WARN("failed to get value from subquery expr. rc=%s", strrc(rc));
+                return rc;
+            }
+            subquery_expr->close();
+        } else {
+            rc = expr_->get_value(*tuple, value);
+            if (rc != RC::SUCCESS) {
+                LOG_WARN("failed to get value from tuple in update stmt. rc=%s", strrc(rc));
+                return rc;
+            }
         }
+        
         values_.emplace_back(make_unique<Value>(value));
 
         if (nullptr == tuple) {
