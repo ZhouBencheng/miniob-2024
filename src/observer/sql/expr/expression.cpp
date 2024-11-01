@@ -252,18 +252,19 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       ret = static_cast<SubQueryExpr *>(expr.get());
       ret->physical_operator()->set_parent_tuple(&tuple);
       rc = ret->open(nullptr);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to open subquery expr. rc=%s", strrc(rc));
+      }
     }
     return ret;
   };
 
   left_subquery_expr  = open_subquery_expr(left_, rc);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to open left subquery expr. rc=%s", strrc(rc));
     return rc;
   }
   right_subquery_expr = open_subquery_expr(right_, rc);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to open right subquery expr. rc=%s", strrc(rc));
     return rc;
   }
 
