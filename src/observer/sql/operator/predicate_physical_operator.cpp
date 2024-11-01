@@ -38,7 +38,7 @@ RC PredicatePhysicalOperator::next()
   RC                rc   = RC::SUCCESS;
   PhysicalOperator *oper = children_.front().get();
 
-  JoinedTuple *join_tuple = nullptr;
+  JoinedTuple join_tuple;
   Tuple       *target_tuple = nullptr;
   while (RC::SUCCESS == (rc = oper->next())) {
     Tuple *tuple = oper->current_tuple();
@@ -48,11 +48,10 @@ RC PredicatePhysicalOperator::next()
       break;
     }
 
-    if (parent_tuple_) {
-      join_tuple = new JoinedTuple();
-      join_tuple->set_left(const_cast<Tuple *>(parent_tuple_));
-      join_tuple->set_right(tuple);
-      target_tuple = join_tuple;
+    if (parent_tuple_) {  
+      join_tuple.set_left(const_cast<Tuple *>(parent_tuple_));
+      join_tuple.set_right(tuple);
+      target_tuple = &join_tuple;
     } else {
       target_tuple = tuple;
     }

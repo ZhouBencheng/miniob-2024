@@ -629,10 +629,11 @@ public:
   // 一种是在exists运算中计算当前子查询是否有结果
   // 另一种是在in运算中保证左算子为子查询的情况下，只输出一个结果
   bool have_row(const Tuple *parent_tuple) const;
-
   RC generate_select_stmt(Db *db, const BinderContext &binder_context);
   RC generate_logical_operator();
   RC generate_physical_operator();
+
+  std::unique_ptr<PhysicalOperator> &physical_operator() { return physical_operator_; }
 
 private:
   std::unique_ptr<ParsedSqlNode>    parsed_sql_node_;

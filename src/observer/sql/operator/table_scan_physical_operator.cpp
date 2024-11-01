@@ -73,13 +73,12 @@ RC TableScanPhysicalOperator::filter(RowTuple &tuple, bool &result)
   RC    rc = RC::SUCCESS;
   Value value;
   for (unique_ptr<Expression> &expr : predicates_) {
-    JoinedTuple *join_tuple = nullptr;
+    JoinedTuple  join_tuple;
     Tuple       *tuple_ptr  = &tuple;
     if (parent_tuple_) {
-      join_tuple = new JoinedTuple();
-      join_tuple->set_left(const_cast<Tuple *>(parent_tuple_));
-      join_tuple->set_right(&tuple);
-      tuple_ptr = join_tuple;
+      join_tuple.set_left(const_cast<Tuple *>(parent_tuple_));
+      join_tuple.set_right(&tuple);
+      tuple_ptr = &join_tuple;
     } else {
       tuple_ptr = &tuple;
     }
