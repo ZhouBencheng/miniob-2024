@@ -113,6 +113,7 @@ UPDATE                                  RETURN_TOKEN(UPDATE);
 SET                                     RETURN_TOKEN(SET);
 INNER                                   RETURN_TOKEN(INNER);
 JOIN                                    RETURN_TOKEN(JOIN);
+UNIQUE                                  RETURN_TOKEN(UNIQUE);
 BEGIN                                   RETURN_TOKEN(TRX_BEGIN);
 COMMIT                                  RETURN_TOKEN(TRX_COMMIT);
 ROLLBACK                                RETURN_TOKEN(TRX_ROLLBACK);

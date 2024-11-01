@@ -60,7 +60,8 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
     sql_result->set_state_string("Failed to parse sql");
     return rc;
   }
-
+  
+  LOG_DEBUG("获取到的unique: %d", sql_node->create_index.unique);
 
 
   sql_event->set_sql_node(std::move(sql_node));

@@ -320,9 +320,10 @@ create_index_stmt:    /*create index 语句的语法解析树*/
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
       CreateIndexSqlNode &create_index = $$->create_index;
+      create_index.unique = $2;
       create_index.index_name = $4;
       create_index.relation_name = $6;
-      create_index.unique = $2;
+      
       
       std::vector<std::string> *idx_cols = $9;
       if (nullptr != idx_cols) {

@@ -440,10 +440,10 @@ RC Table::get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadWriteMode m
   return rc;
 }
 
-RC Table::create_index(Trx *trx, const std::vector<const FieldMeta*> field_metas, const char *index_name){
+RC Table::create_index(Trx *trx, bool unique, const std::vector<const FieldMeta*> field_metas, const char *index_name){
 
   IndexMeta new_index_meta;
-  RC rc = new_index_meta.init(index_name, field_metas);
+  RC rc = new_index_meta.init(index_name, unique, field_metas);
    if (rc != RC::SUCCESS) {
     std::string field_names = field_metas[0]->name();
     for (int i = 0; i < field_metas.size(); i++) {
@@ -479,7 +479,7 @@ RC Table::create_index(Trx *trx, const std::vector<const FieldMeta*> field_metas
   BplusTreeIndex *index = new BplusTreeIndex();
   std::string index_file = table_index_file(base_dir_.c_str(), name(), index_name);
 
-  rc = index->create(this, index_file.c_str(), new_index_meta, field_ids, field_metas);
+  rc = index->create(this, index_file.c_str(), unique, new_index_meta, field_ids, field_metas);
 
     if (rc != RC::SUCCESS) {
     delete index;

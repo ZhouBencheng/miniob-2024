@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 const static Json::StaticString FIELD_NAME("name");
 const static Json::StaticString FIELD_FIELD_NAME("field_name");
 const static Json::StaticString FIELD_FIELD_NUM("field_num");
+const static Json::StaticString FIELD_UNIQUE("unique");
 
 
 // RC IndexMeta::init(const char *name, const FieldMeta &field)
@@ -37,7 +38,7 @@ const static Json::StaticString FIELD_FIELD_NUM("field_num");
 // }
 
 
-RC IndexMeta::init(const char* name, const std::vector<const FieldMeta*> &fields){
+RC IndexMeta::init(const char* name, bool unique, const std::vector<const FieldMeta*> &fields){
   if (common::is_blank(name)) {
     LOG_ERROR("Failed to init index, name is empty.");
     return RC::INVALID_ARGUMENT;
@@ -47,7 +48,7 @@ RC IndexMeta::init(const char* name, const std::vector<const FieldMeta*> &fields
   for (auto & field_meta: fields){
     fields_str.emplace_back(field_meta->name());
   }
-
+  unique_ = unique;
   name_ = name;
   fields_ = fields_str;
   return RC::SUCCESS;
@@ -57,6 +58,7 @@ RC IndexMeta::init(const char* name, const std::vector<const FieldMeta*> &fields
 void IndexMeta::to_json(Json::Value &json_value) const
 {
   json_value[FIELD_NAME] = name_;
+  json_value[FIELD_UNIQUE] = unique_;
   json_value[FIELD_FIELD_NUM] = fields_.size();
   Json::Value fields;
   for (int i = 0; i < fields_.size(); i++) {
@@ -70,11 +72,17 @@ RC IndexMeta::from_json(const TableMeta &table, const Json::Value &json_value, I
    const Json::Value &name_value = json_value[FIELD_NAME];
   const Json::Value &field_num = json_value[FIELD_FIELD_NUM];
   const Json::Value &field_value = json_value[FIELD_FIELD_NAME];
+  const Json::Value &unique = json_value[FIELD_UNIQUE];
+
   if (!name_value.isString()) {
     LOG_ERROR("Index name is not a string. json value=%s", name_value.toStyledString().c_str());
     return RC::INTERNAL;
   }
 
+   if (!unique.isBool()) {
+    LOG_ERROR("Index unique_option is not a bool. json value=%s", unique.toStyledString().c_str());
+    return RC::INTERNAL;
+  }
  
   if (!field_num.isInt()) {
     LOG_ERROR("Field num of index [%s] is not a integer. json value=%s",
@@ -110,7 +118,7 @@ RC IndexMeta::from_json(const TableMeta &table, const Json::Value &json_value, I
     fields.emplace_back(field);
   }
 
-  return index.init(name_value.asCString(), fields);
+  return index.init(name_value.asCString(), unique.asBool() ,fields);
 }
 
 const char *IndexMeta::name() const { return name_.c_str(); }
@@ -119,6 +127,10 @@ const char *IndexMeta::name() const { return name_.c_str(); }
 const std::vector<std::string> &IndexMeta::fields() const
 {
   return fields_;
+}
+
+const bool IndexMeta::unique() const{
+  return unique_;
 }
 
 void IndexMeta::desc(std::ostream &os) const

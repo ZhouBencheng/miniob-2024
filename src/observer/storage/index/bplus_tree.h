@@ -118,8 +118,9 @@ class KeyComparator
 {
 public:
 
-  void init(int attr_num, int* field_id, AttrType* type, int * length){
+  void init(bool unique, int attr_num, int* field_id, AttrType* type, int * length){
     attr_comparator_.init(attr_num, field_id, type, length);
+    unique_ = unique;
   }
 
 
@@ -131,6 +132,9 @@ public:
     if (result != 0) {
       return result;
     }
+    if (unique_){
+      return result; // 唯一索引不比较rid
+    }
 
     const RID *rid1 = (const RID *)(v1 + attr_comparator_.attr_length());
     const RID *rid2 = (const RID *)(v2 + attr_comparator_.attr_length());
@@ -138,6 +142,7 @@ public:
   }
 
 private:
+  bool unique_;
   AttrComparator attr_comparator_;
 };
 
@@ -264,6 +269,7 @@ struct IndexFileHeader
   int32_t attr_length[MAX_INDEX_FIELD_NUM];       ///< 键值的长度
   int32_t attr_offset[MAX_INDEX_FIELD_NUM];       ///< 键值在record中的offset  
   AttrType attr_type[MAX_INDEX_FIELD_NUM];        ///< 键值的类型
+  int32_t unique;            ///< 是否是唯一索引
 
 
   const std::string to_string() const
@@ -553,6 +559,7 @@ public:
   RC create(
             LogHandler &log_handler, BufferPoolManager &bpm,
             const char *file_name, 
+            const bool unique,
             const std::vector<int> &field_ids,
             const std::vector<const FieldMeta*> &fields,
             int internal_max_size = -1, 

@@ -44,7 +44,7 @@ BplusTreeIndex::~BplusTreeIndex() noexcept { close(); }
 //   return RC::SUCCESS;
 // }
 
-RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &index_meta, 
+RC BplusTreeIndex::create(Table *table, const char *file_name, const bool unique,  const IndexMeta &index_meta, 
               const std::vector<int> &field_ids, const std::vector<const FieldMeta*> &field_metas)
 {
   if (inited_) {
@@ -58,7 +58,7 @@ RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &
   Index::init(index_meta, field_metas);
   BufferPoolManager &bpm = table->db()->buffer_pool_manager();
 
-  RC rc = index_handler_.create(table->db()->log_handler(), bpm, file_name, field_ids, field_metas);
+  RC rc = index_handler_.create(table->db()->log_handler(), bpm, file_name, unique, field_ids, field_metas);
   // RC rc = index_handler_.create(file_name, field_ids, field_metas);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to create index_handler, file_name:%s, index:%s, field:%s, rc:%s",
