@@ -137,6 +137,7 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
         NE
         NOT
         IS
+        AS
         IN
         EXISTS
         NULL_T
@@ -190,6 +191,7 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
 %type <string>              storage_format
 %type <string>              aggregation_name
 %type <string>              vector_func_name
+%type <string>              alias
 %type <relation_list>       idx_col_list
 %type <expression>          expression
 %type <expression>          aggregation_func
@@ -628,20 +630,36 @@ calc_stmt:
     }
     ;
 
+alias:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | AS ID {
+      $$ = $2;
+    }
+    ;
+
 expression_list:
     /* empty */
     {
       $$ = nullptr;
     }
-    | expression
+    | expression alias
     {
+      if ($2 != nullptr) {
+        $1->set_alias(std::string($2));
+      }
       $$ = new std::vector<std::unique_ptr<Expression>>;
       $$->emplace_back($1);
     }
-    | expression COMMA expression_list
+    | expression alias COMMA expression_list
     {
-      if ($3 != nullptr) {
-        $$ = $3;
+      if ($2 != nullptr) {
+        $1->set_alias(std::string($2));
+      }
+      if ($4 != nullptr) {
+        $$ = $4;
       } else {
         $$ = new std::vector<std::unique_ptr<Expression>>;
       }
@@ -694,6 +712,7 @@ expression:
     }
     | LBRACE select_stmt RBRACE {
       $$ = new SubQueryExpr(make_unique<ParsedSqlNode>(std::move(*$2)));
+      $$->set_name(token_name(sql_string, &@$));
     }
 
 aggregation_func:

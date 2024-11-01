@@ -43,8 +43,8 @@ static void wildcard_fields(Table *table, vector<unique_ptr<Expression>> &expres
     Field      field(table, table_meta.field(i));
     FieldExpr *field_expr = new FieldExpr(field);
     // 注意：如果当前是单表查询，则直接使用字段名，否则使用表名.字段名的形式
-    string field_name = is_single_table ? field.field_name() : string(table->name()) + "." + string(field.field_name());
-    field_expr->set_name(field_name);
+    string name = is_single_table ? field.field_name() : string(table->name()) + "." + string(field.field_name());
+    field_expr->set_name(name);
     expressions.emplace_back(field_expr);
   }
 }
@@ -187,6 +187,10 @@ RC ExpressionBinder::bind_unbound_field_expression(
 
     Field      field(table, field_meta);
     FieldExpr *field_expr = new FieldExpr(field);
+
+    if (strlen(unbound_field_expr->alias()) > 0) {
+      field_expr->set_alias(unbound_field_expr->alias());
+    }
 
     string expr_name = field_name;
     if (!is_blank(table_name)) {
@@ -467,6 +471,9 @@ RC ExpressionBinder::bind_aggregate_expression(
 
   // 此处已经将聚合表达式的聚合函数名称转化为聚合函数类型，构造绑定好的AggregateExpr对象
   auto aggregate_expr = make_unique<AggregateExpr>(aggregate_type, std::move(child_expr));
+  if (strlen(unbound_aggregate_expr->alias()) > 0) {
+    aggregate_expr->set_alias(unbound_aggregate_expr->alias());
+  }
   aggregate_expr->set_name(unbound_aggregate_expr->name());
   rc = check_aggregate_expression(*aggregate_expr);
   if (OB_FAIL(rc)) {
@@ -534,6 +541,9 @@ RC ExpressionBinder::bind_unbound_vector_expression(
   // 构造绑定好的VectorExpr对象
   auto vector_expr = make_unique<VectorExpr>(vector_type, std::move(left_expr), std::move(right_expr));
   vector_expr->set_name(unbound_vector_expr->name());
+  if (strlen(unbound_vector_expr->alias()) > 0) {
+    vector_expr->set_alias(unbound_vector_expr->alias());
+  }
 
   bound_expressions.emplace_back(std::move(vector_expr));
   return RC::SUCCESS;
