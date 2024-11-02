@@ -42,7 +42,7 @@ RC SelectStmt::handle_from_clause(Db       *db,
   std::unordered_set<std::string> table_alias_set;
 
   auto collect_and_check_table = [&](std::pair<std::string, std::string> &table_name) { // lamda表达式，用于解析一个表名到表指针
-    if (table_alias_set.find(table_name.second) != table_alias_set.end()) { // 如果别名已存在，则报错
+    if (strlen(table_name.second.c_str()) > 0 && table_alias_set.find(table_name.second) != table_alias_set.end()) { // 如果别名已存在，则报错
       LOG_WARN("table alias already exists. alias=%s", table_name.second.c_str());
       return RC::SCHEMA_TABLE_ALIAS_DUPLICATE;
     }
@@ -131,7 +131,10 @@ RC SelectStmt::handle_from_clause(Db       *db,
   return RC::SUCCESS;
 }
 
-RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const BinderContext &parent_binder_context)
+RC SelectStmt::create(Db *db, 
+                      SelectSqlNode &select_sql, 
+                      Stmt *&stmt, 
+                      const BinderContext &parent_binder_context)
 {
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
@@ -146,15 +149,29 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const Bind
   vector<JoinTable>              join_tables;
   unordered_map<std::string, std::string> table_alias_map;
 
-  auto handle_expr_alias = [&table_alias_map](Expression *expr) {
+  function<RC(Expression *)> handle_expr_alias = [&table_alias_map, &handle_expr_alias](Expression *expr) -> RC {
+    RC rc = RC::SUCCESS;
     if (expr->type() == ExprType::UNBOUND_FIELD) {
       UnboundFieldExpr *unbound_field_expr = static_cast<UnboundFieldExpr *>(expr);
       const char *table_name = unbound_field_expr->table_name();
       if (strlen(table_name) > 0 && table_alias_map.find(table_name) != table_alias_map.end()) {
         unbound_field_expr->set_table_name(table_alias_map[table_name].c_str());
       }
+    } else if (expr->type() == ExprType::SUBQUERY) {
+      SubQueryExpr *sub_query_expr = static_cast<SubQueryExpr *>(expr);
+      std::unique_ptr<ParsedSqlNode> &parsed_sql_node = sub_query_expr->parsed_sql_node();
+      std::vector<ConditionSqlNode> &conditions = parsed_sql_node->selection.conditions;
+      for (ConditionSqlNode &condition : conditions) {
+        RC rc1 = condition.left_expression->traverse_check(handle_expr_alias);
+        RC rc2 = condition.right_expression->traverse_check(handle_expr_alias);
+        if (rc1 != RC::SUCCESS || rc2 != RC::SUCCESS) {
+          rc1 = rc1 != RC::SUCCESS ? rc1 : rc2;
+          LOG_WARN("handle expr alias failed in subquery. rc=%s", strrc(rc1));
+          return rc1;
+        }
+      }
     }
-    return RC::SUCCESS;
+    return rc;
   };
 
   RC rc = handle_from_clause(db, select_sql.relations, handle_expr_alias, binder_context, tables, table_map, table_alias_map, join_tables);
@@ -162,6 +179,17 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const Bind
     LOG_WARN("handle from clause failed. rc=%s", strrc(rc));
     return rc;
   }
+
+  // 处理父子查询中别名的的映射，子查询的别名会覆盖父查询重复的别名
+  if (parent_binder_context.table_alias_map() != nullptr) {
+    std::unordered_map<std::string, std::string> parent_table_alias_map = *parent_binder_context.table_alias_map();
+    for (const auto &[alias, table_name] : parent_table_alias_map) {
+      if (table_alias_map.find(alias) == table_alias_map.end()) { // 父查询的别名在子查询中不存在，则添加到子查询的别名映射中
+        table_alias_map[alias] = table_name;
+      }
+    }
+  }
+  binder_context.set_table_alias_map(&table_alias_map);
 
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;

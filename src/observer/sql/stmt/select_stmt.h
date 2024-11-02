@@ -64,7 +64,10 @@ public:
   StmtType type() const override { return StmtType::SELECT; }
 
 public:
-  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const BinderContext &parent_binder_context = BinderContext()); // 默认构造为空BinderContext
+  static RC create(Db *db, 
+                    SelectSqlNode &select_sql, 
+                    Stmt *&stmt, 
+                    const BinderContext &parent_binder_context = BinderContext()); // 默认构造为空BinderContext
 
 public:
   const std::vector<JoinTable> &join_tables() const { return join_tables_; }

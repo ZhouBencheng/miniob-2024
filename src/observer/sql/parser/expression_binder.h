@@ -33,8 +33,12 @@ public:
 
   const std::vector<Table *> &query_tables() const { return query_tables_; }
 
+  void set_table_alias_map(std::unordered_map<std::string, std::string> *table_alias_map) { table_alias_map_ = table_alias_map; }
+  std::unordered_map<std::string, std::string> *table_alias_map() const { return table_alias_map_; }
+
 private:
   std::vector<Table *> query_tables_;
+  std::unordered_map<std::string, std::string> *table_alias_map_ = nullptr;
 };
 
 /**
@@ -44,7 +48,9 @@ private:
 class ExpressionBinder
 {
 public:
-  ExpressionBinder(BinderContext &context, Db *db) : db_(db), context_(context) {}
+  ExpressionBinder(BinderContext &context, Db *db)
+      : db_(db), context_(context) {}
+  
   virtual ~ExpressionBinder() = default;
 
   void set_default_table(Table *table) { default_table_ = table; }

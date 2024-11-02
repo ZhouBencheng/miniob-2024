@@ -743,6 +743,22 @@ UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, Expressio
     : aggregate_name_(aggregate_name), child_(child)
 {}
 
+RC UnboundAggregateExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
+{
+  RC rc = RC::SUCCESS;
+  rc = child_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check child expression in aggregate expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = check_func(this);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to check aggregate expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  return rc;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 AggregateExpr::AggregateExpr(Type type, Expression *child) : aggregate_type_(type), child_(child) {}
 
@@ -849,6 +865,27 @@ RC AggregateExpr::traverse_check(const std::function<RC(Expression *)> &check_fu
 UnboundVectorExpr::UnboundVectorExpr(const char *vector_func_name, Expression *left, Expression *right)
     : vector_func_name_(vector_func_name), left_(left), right_(right)
 {}
+
+RC UnboundVectorExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
+{
+  RC rc = RC::SUCCESS;
+  rc = left_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check left expression in vector expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = right_->traverse_check(check_func);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to traverse check right expression in vector expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  rc = check_func(this);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to check vector expr. rc=%s", strrc(rc));
+    return rc;
+  }
+  return rc;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

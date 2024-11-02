@@ -490,6 +490,8 @@ public:
   RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
   AttrType value_type() const override { return child_->value_type(); }
 
+  RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
 private:
   std::string                 aggregate_name_; // 聚合函数名称
   std::unique_ptr<Expression> child_;          // 子表达式
@@ -562,6 +564,8 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
   AttrType value_type() const override { return AttrType::VECTORS; }
+
+  RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
 
 private:
   std::string                 vector_func_name_;
@@ -640,6 +644,7 @@ public:
   RC generate_physical_operator();
 
   std::unique_ptr<PhysicalOperator> &physical_operator() { return physical_operator_; }
+  std::unique_ptr<ParsedSqlNode> &parsed_sql_node() { return parsed_sql_node_; }
 
 private:
   std::unique_ptr<ParsedSqlNode>    parsed_sql_node_;
