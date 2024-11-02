@@ -28,7 +28,7 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(Table *table, Field *field, std::unique_ptr<Expression> expr, int value_amount, FilterStmt* filter);
+  UpdateStmt(Table *table, std::vector<std::pair<Field *, std::unique_ptr<Expression>>> assignments, FilterStmt* filter);
 
   StmtType type() const override { return StmtType::UPDATE; }
 
@@ -36,16 +36,12 @@ public:
   static RC create(Db *db, UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
-  Table       *table() const { return table_; }
-  std::unique_ptr<Expression> &expr() { return expr_; }
-  int          value_amount() const { return value_amount_; }
-  FilterStmt  *filter_stmt() const { return filter_; } /* My addition */
-  Field       *field() const { return field_; }
+  Table                                                             *table() const { return table_; }
+  FilterStmt                                                        *filter_stmt() const { return filter_; } /* My addition */
+  std::vector<std::pair<Field *, std::unique_ptr<Expression>>> &assignments() { return assignments_; }
 
 private:
   Table       *table_        = nullptr;
-  Field       *field_        = nullptr;
-  std::unique_ptr<Expression> expr_;
+  std::vector<std::pair<Field *, std::unique_ptr<Expression>>> assignments_;
   FilterStmt  *filter_       = nullptr; /* My addition */
-  int          value_amount_ = 0;
 };

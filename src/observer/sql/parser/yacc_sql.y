@@ -164,6 +164,8 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
   int                                        number;
   float                                      floats;
   bool                                       boolean;
+  std::vector<std::pair<std::string, std::unique_ptr<Expression>>> * assignments;
+  std::pair<std::string, std::unique_ptr<Expression>> *        assignment;
 }
 
 %token <number> NUMBER
@@ -219,6 +221,8 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
 %type <sql_node>            help_stmt
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
+%type <assignment>         assignment
+%type <assignments>        assignment_list
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -532,19 +536,48 @@ delete_stmt:    /*  delete 语句的语法解析树*/
       free($3);
     }
     ;
+
+assignment:
+    ID EQ expression
+    {
+      $$ = new std::pair<std::string, std::unique_ptr<Expression>>($1, $3);
+      free($1);
+    }
+    ;
+
+assignment_list:
+    assignment {
+      $$ = new std::vector<std::pair<std::string, std::unique_ptr<Expression>>>();
+      $$->emplace_back(std::move(*$1));
+      delete $1;
+    }
+    | assignment COMMA assignment_list 
+    {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<std::pair<std::string, std::unique_ptr<Expression>>>();
+      }
+      $$->emplace_back(std::move(*$1));
+      delete $1;
+    }
+    ;
+
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ expression where 
+    UPDATE ID SET assignment_list where 
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      $$->update.expr.reset($6);
-      if ($7 != nullptr) {
-        $$->update.conditions.swap(*$7);
-        delete $7;
+
+      $$->update.assignments.swap(*$4);
+      std::reverse($$->update.assignments.begin(), $$->update.assignments.end());
+      delete $4;
+      
+      if ($5 != nullptr) {
+        $$->update.conditions.swap(*$5);
+        delete $5;
       }
       free($2);
-      free($4);
     }
     ;
 

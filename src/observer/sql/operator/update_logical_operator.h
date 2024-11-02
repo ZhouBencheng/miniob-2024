@@ -13,18 +13,14 @@ class Table;
 class UpdateLogicalOperator : public LogicalOperator
 {
 public:
-    UpdateLogicalOperator(Table *table, Field *field, std::unique_ptr<Expression> expr, int value_amount);
+    UpdateLogicalOperator(Table *table, std::vector<std::pair<Field *, std::unique_ptr<Expression>>> assignments);
     virtual ~UpdateLogicalOperator() = default;
 
     LogicalOperatorType  type() const override { return LogicalOperatorType::UPDATE; }
     Table               *table() const         { return table_; }
-    Field               *field() const         { return field_; }
-    std::unique_ptr<Expression> &expr()        { return expr_; }
-    int                  value_amount() const  { return value_amount_; }
+    std::vector<std::pair<Field *, std::unique_ptr<Expression>>> &assignments() { return assignments_; }
 
 private:
     Table                      *table_              = nullptr;
-    Field                      *field_              = nullptr;
-    std::unique_ptr<Expression> expr_;
-    int                         value_amount_       = 0;
+    std::vector<std::pair<Field *, std::unique_ptr<Expression>>> assignments_;
 };

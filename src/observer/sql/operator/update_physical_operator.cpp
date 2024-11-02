@@ -22,31 +22,35 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
     while(OB_SUCC(rc = child->next())) { // 遍历下层算子提供的记录
         Tuple *tuple = child->current_tuple();
-        Value value;
 
-        if (expr_->type() == ExprType::SUBQUERY) { // 若赋值目标为子查询，则需要先打开子查询
-            SubQueryExpr *subquery_expr = static_cast<SubQueryExpr *>(expr_.get());
-            subquery_expr->physical_operator()->set_parent_tuple(tuple);
-            rc = subquery_expr->open(nullptr);
-            if (rc != RC::SUCCESS) {
-                LOG_WARN("failed to open subquery expr. rc=%s", strrc(rc));
-                return rc;
+        vector<std::pair<Field *, std::unique_ptr<Value>>> values_in_single_record; // 存储一个记录要改变的一系列值
+        for (auto &assignment : assignments_) {
+            std::unique_ptr<Expression> &expr = assignment.second;
+            Value value;
+            if (expr->type() == ExprType::SUBQUERY) { // 若赋值目标为子查询，则需要先打开子查询
+                SubQueryExpr *subquery_expr = static_cast<SubQueryExpr *>(expr.get());
+                subquery_expr->physical_operator()->set_parent_tuple(tuple);
+                rc = subquery_expr->open(nullptr);
+                if (rc != RC::SUCCESS) {
+                    LOG_WARN("failed to open subquery expr. rc=%s", strrc(rc));
+                    return rc;
+                }
+                rc = subquery_expr->get_value(*tuple, value);
+                if (rc != RC::SUCCESS) {
+                    LOG_WARN("failed to get value from subquery expr. rc=%s", strrc(rc));
+                    return rc;
+                }
+                subquery_expr->close();
+            } else {
+                rc = expr->get_value(*tuple, value);
+                if (rc != RC::SUCCESS) {
+                    LOG_WARN("failed to get value from tuple in update stmt. rc=%s", strrc(rc));
+                    return rc;
+                }
             }
-            rc = subquery_expr->get_value(*tuple, value);
-            if (rc != RC::SUCCESS) {
-                LOG_WARN("failed to get value from subquery expr. rc=%s", strrc(rc));
-                return rc;
-            }
-            subquery_expr->close();
-        } else {
-            rc = expr_->get_value(*tuple, value);
-            if (rc != RC::SUCCESS) {
-                LOG_WARN("failed to get value from tuple in update stmt. rc=%s", strrc(rc));
-                return rc;
-            }
+            values_in_single_record.emplace_back(assignment.first, make_unique<Value>(value));
         }
-        
-        values_.emplace_back(make_unique<Value>(value));
+        values_.emplace_back(std::move(values_in_single_record));
 
         if (nullptr == tuple) {
             LOG_WARN("failed to get current record: %s", strrc(rc));
@@ -61,10 +65,12 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     // 先收集记录再进行更新
     // 记录的有效性由事务来保证，如果事务不保证更新的有效性，那说明此事务类型不支持并发控制，比如VacuousTrx
     for (size_t i = 0; i < records_.size(); i++) {
-        rc = trx_->update_record(table_, records_[i], *values_[i], field_->meta());
-        if (rc != RC::SUCCESS) {
-            LOG_WARN("failed to update record: %s", strrc(rc));
-            return rc;
+        for (auto &value_in_single_record : values_[i]) {
+            rc = trx_->update_record(table_, records_[i], *value_in_single_record.second, value_in_single_record.first->meta());
+            if (rc != RC::SUCCESS) {
+                LOG_WARN("failed to update record: %s", strrc(rc));
+                return rc;
+            }
         }
     }
 

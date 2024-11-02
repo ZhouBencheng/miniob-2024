@@ -155,8 +155,10 @@ union YYSTYPE
   int                                        number;
   float                                      floats;
   bool                                       boolean;
+  std::vector<std::pair<std::string, std::unique_ptr<Expression>>> * assignments;
+  std::pair<std::string, std::unique_ptr<Expression>> *        assignment;
 
-#line 160 "yacc_sql.hpp"
+#line 162 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

@@ -17,20 +17,16 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 #include <sql/parser/expression_binder.h>
+#include "sql/expr/expression.h"
 
-UpdateStmt::UpdateStmt(Table *table, Field *field, std::unique_ptr<Expression> expr, int value_amount, FilterStmt* filter)
-    : table_(table), field_(field), expr_(std::move(expr)),  filter_(filter), value_amount_(value_amount)
+UpdateStmt::UpdateStmt(Table *table, std::vector<std::pair<Field *, std::unique_ptr<Expression>>> assignments, FilterStmt* filter)
+    : table_(table), assignments_(std::move(assignments)), filter_(filter)
 {}
 
 RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 {
   // 检查表名称和属性名称是否为非空
   const char *table_name = update.relation_name.c_str();
-  const char *attribute_name = update.attribute_name.c_str();
-  if (table_name == nullptr || attribute_name == nullptr || db == nullptr) {
-    LOG_WARN("invalid argument. table_name=%p, attribute_name=%p", table_name, attribute_name);
-    return RC::INVALID_ARGUMENT;
-  }
 
   // 检查表是否存在
   Table *table = db->find_table(table_name);
@@ -38,14 +34,6 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
     LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
-
-  // 检查属性是否存在
-  Field *field = table->find_field(attribute_name);
-  if (field == nullptr) {
-    LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, attribute_name);
-    return RC::SCHEMA_FIELD_NOT_EXIST;
-  }
-
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table*>(std::string(table_name), table));
 
@@ -55,12 +43,32 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
   ExpressionBinder expression_binder(binder_context, db);
   expression_binder.set_default_table(table);
 
-  if (update.expr->type() == ExprType::SUBQUERY) {
-    RC rc = static_cast<SubQueryExpr *>(update.expr.get())->generate_select_stmt(db, binder_context);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to generate sub query select stmt in update stmt. rc=%d:%s", rc, strrc(rc));
-      return rc;
+  // 检查赋值列表中的属性和表达式是否合法存在
+  std::vector<std::pair<Field *, std::unique_ptr<Expression>>> assignments;
+  for (auto &assignment : update.assignments) {
+    // 处理一个赋值语句中的属性合法性
+    const char *attribute_name = assignment.first.c_str();
+    if (attribute_name == nullptr) {
+      LOG_WARN("invalid argument: attribute_name is null");
+      return RC::INVALID_ARGUMENT;
     }
+
+    Field *field = table->find_field(attribute_name);
+    if (field == nullptr) {
+      LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, attribute_name);
+      return RC::SCHEMA_FIELD_NOT_EXIST;
+    }
+
+    // 处理一个赋值语句中的表达式合法性
+    if (assignment.second->type() == ExprType::SUBQUERY) {
+      RC rc = static_cast<SubQueryExpr *>(assignment.second.get())->generate_select_stmt(db, binder_context);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to generate sub query select stmt in update stmt. rc=%d:%s", rc, strrc(rc));
+        return rc;
+      }
+    }
+
+    assignments.emplace_back(std::make_pair(field, std::move(assignment.second)));
   }
 
   // FilterStmt::create函数：当condition中不存在过滤条件时，依然将filter_stmt指针构造为一个空的FilterStmt对象
@@ -79,7 +87,7 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
     return rc;
   }
 
-  stmt = new UpdateStmt(table, field, std::move(update.expr), /* update仅对一个属性更新 */1, filter_stmt);
+  stmt = new UpdateStmt(table, std::move(assignments), filter_stmt);
 
   return RC::SUCCESS;
 }

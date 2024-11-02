@@ -361,19 +361,20 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
     }
   }
 
-  std::unique_ptr<Expression> &expr = update_oper.expr();
-  if (expr->type() == ExprType::SUBQUERY) {
-    RC rc = static_cast<SubQueryExpr *>(expr.get())->generate_physical_operator();
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to generate sub query physical operator in update stmt. rc=%s", strrc(rc));
-      return rc;
+  vector<std::pair<Field *, std::unique_ptr<Expression>>> &assignments = update_oper.assignments();
+
+  for (auto &assignment : assignments) {
+    std::unique_ptr<Expression> &expr = assignment.second;
+    if (expr->type() == ExprType::SUBQUERY) {
+      RC rc = static_cast<SubQueryExpr *>(expr.get())->generate_physical_operator();
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to generate sub query physical operator in update stmt. rc=%s", strrc(rc));
+        return rc;
+      }
     }
   }
 
-  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(),
-      update_oper.field(),
-      std::move(expr),
-      update_oper.value_amount()));
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(), std::move(assignments)));
   LOG_TRACE("create an update physical operator");
 
   if (child_physical_oper) {
