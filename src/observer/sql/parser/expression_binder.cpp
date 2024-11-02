@@ -129,6 +129,11 @@ RC ExpressionBinder::bind_star_expression(
 
   auto star_expr = static_cast<StarExpr *>(expr.get());
 
+  if (strlen(star_expr->alias()) > 0) {
+    LOG_WARN("star expr can not have alias");
+    return RC::INVALID_ARGUMENT;
+  }
+
   vector<Table *> tables_to_wildcard;
 
   const char *table_name = star_expr->table_name();
