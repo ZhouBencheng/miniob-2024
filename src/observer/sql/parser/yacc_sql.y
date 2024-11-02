@@ -564,14 +564,17 @@ join_node_list: // 改规则用于解析多个逗号分隔的join语句
     }
 
 join_node: // 改规则用于解析单个连续的inner join语句
-    ID join_list 
+    ID alias join_list 
     {
-      if ($2 != nullptr) {
-        $$ = $2;
+      if ($3 != nullptr) {
+        $$ = $3;
       } else {
         $$ = new InnerJoinSqlNode;
       }
-      $$->basic_relation = $1;
+      if ($2 != nullptr) {
+        $$->basic_relation.second = $2;
+      }
+      $$->basic_relation.first = $1;
       std::reverse($$->join_relations.begin(), $$->join_relations.end());
       std::reverse($$->conditions.begin(), $$->conditions.end());
       free($1);
@@ -582,15 +585,20 @@ join_list: // 改规则用于解析单个inner join中的内连接表和对应�
     {
       $$ =  nullptr;
     }
-    | INNER JOIN ID ON condition_list join_list 
+    | INNER JOIN ID alias ON condition_list join_list 
     {
-      if ($6 != nullptr) {
-        $$ = $6;
+      if ($7 != nullptr) {
+        $$ = $7;
       } else {
         $$ = new InnerJoinSqlNode;
       }
-      $$->join_relations.emplace_back($3);
-      $$->conditions.emplace_back(std::move(*$5));
+      std::pair<std::string, std::string> join_relation;
+      if ($4 != nullptr) {
+        join_relation.second = $4;
+      }
+      join_relation.first = $3;
+      $$->join_relations.emplace_back(join_relation);
+      $$->conditions.emplace_back(std::move(*$6));
       free($3);
     }
 

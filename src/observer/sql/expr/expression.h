@@ -209,6 +209,8 @@ public:
   const char *table_name() const { return table_name_.c_str(); }
   const char *field_name() const { return field_name_.c_str(); }
 
+  void set_table_name(const char *table_name) { table_name_ = table_name; }
+
 private:
   std::string table_name_;
   std::string field_name_;

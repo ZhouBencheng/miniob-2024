@@ -32,13 +32,22 @@ SelectStmt::~SelectStmt()
 
 RC SelectStmt::handle_from_clause(Db       *db, 
   std::vector<InnerJoinSqlNode>            &inner_join_nodes,
+  std::function<RC(Expression *)>         handle_expr_alias,
   BinderContext                            &binder_context, 
   std::vector<Table *>                     &tables, 
   std::unordered_map<std::string, Table *> &table_map,
+  std::unordered_map<std::string, std::string> &table_alias_map,
   std::vector<JoinTable>                  &join_tables)
 {
-  auto collect_and_check_table = [&](std::string &table_name) { // lamda表达式，用于解析一个表名到表指针
-    const char *table_name_cstr = table_name.c_str();
+  std::unordered_set<std::string> table_alias_set;
+
+  auto collect_and_check_table = [&](std::pair<std::string, std::string> &table_name) { // lamda表达式，用于解析一个表名到表指针
+    if (table_alias_set.find(table_name.second) != table_alias_set.end()) { // 如果别名已存在，则报错
+      LOG_WARN("table alias already exists. alias=%s", table_name.second.c_str());
+      return RC::SCHEMA_TABLE_ALIAS_DUPLICATE;
+    }
+
+    const char *table_name_cstr = table_name.first.c_str();
     if (nullptr == table_name_cstr) {
       LOG_WARN("invalid argument. table name is null");
       return RC::INVALID_ARGUMENT;
@@ -51,17 +60,19 @@ RC SelectStmt::handle_from_clause(Db       *db,
     }
     binder_context.add_table(table);
     tables.push_back(table);
-    table_map.insert({table_name, table});
+    table_map.insert({table_name.first, table});
+    table_alias_set.insert(table_name.second);
+    table_alias_map.insert({table_name.second, table_name.first}); // 构造别名到表名的映射
     return RC::SUCCESS;
   };
 
   /**
    * @brief 处理一个InnerJoinSqlNode中的一个表及其对应的on条件，并将解析出的表指针和on条件对应的FilterStmt对象存储到JoinTables对象中
    */
-  auto handle_one_relation = [&](std::string &table_name, vector<ConditionSqlNode> &on_conds, JoinTable &jt) {
+  auto handle_one_relation = [&](std::pair<std::string, std::string> &table_name, vector<ConditionSqlNode> &on_conds, JoinTable &jt) {
     RC rc = RC::SUCCESS;
     rc = collect_and_check_table(table_name);
-    if (rc != RC::SUCCESS) { // 将当前表解析出表指针失败
+    if (rc != RC::SUCCESS) { // 将当前表解析出表指针失败，或者别名重复
       return rc;
     }
 
@@ -69,6 +80,16 @@ RC SelectStmt::handle_from_clause(Db       *db,
     ExpressionBinder expression_binder(binder_context, db);
     // 对于InnerJoinSqlNode中的basic_relation表，其on_conds为空，因此在JoinTables中只需要推入(Table *, nullptr)即可，FilterStmt对象为空
     if (!on_conds.empty()) {
+      for (ConditionSqlNode &on_cond : on_conds) { // 解析on条件中属性表达式的别名
+        RC rc1 = on_cond.left_expression->traverse_check(handle_expr_alias);
+        RC rc2 = on_cond.right_expression->traverse_check(handle_expr_alias);
+        if (rc1 != RC::SUCCESS || rc2 != RC::SUCCESS) {
+          rc1 = rc1 != RC::SUCCESS ? rc1 : rc2;
+          LOG_WARN("handle expr alias failed in on clause. rc=%s", strrc(rc1));
+          return rc1;
+        }
+      }
+
       // 对于InnerJoinSqlNode中的join_relations表，其on_conds不为空，因此在JoinTables中需要推入(Table *, FilterStmt *)
       rc = FilterStmt::create(db, nullptr, &table_map, expression_binder, on_conds.data(), static_cast<int>(on_conds.size()), filter_stmt);
       if (rc != RC::SUCCESS) {
@@ -76,7 +97,7 @@ RC SelectStmt::handle_from_clause(Db       *db,
         return rc;
       }
     }
-    jt.push_join_table(table_map[table_name], filter_stmt);
+    jt.push_join_table(table_map[table_name.first], filter_stmt);
     return RC::SUCCESS;
   };
 
@@ -93,8 +114,8 @@ RC SelectStmt::handle_from_clause(Db       *db,
     }
 
     // 遍历内连接关系，处理每个join_relations表及其对应的on条件
-    vector<std::string>                   &join_relations = inner_join_node.join_relations;
-    vector<std::vector<ConditionSqlNode>> &conditions     = inner_join_node.conditions;
+    vector<std::pair<std::string, std::string>> &join_relations = inner_join_node.join_relations;
+    vector<std::vector<ConditionSqlNode>>       &conditions     = inner_join_node.conditions;
     for (size_t j = 0; j < join_relations.size(); j++) {
       rc = handle_one_relation(join_relations[j], conditions[j], jt);
       if (rc != RC::SUCCESS) {
@@ -123,7 +144,20 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const Bind
   vector<Table *>                tables;
   unordered_map<string, Table *> table_map;
   vector<JoinTable>              join_tables;
-  RC rc = handle_from_clause(db, select_sql.relations, binder_context, tables, table_map, join_tables);
+  unordered_map<std::string, std::string> table_alias_map;
+
+  auto handle_expr_alias = [&table_alias_map](Expression *expr) {
+    if (expr->type() == ExprType::UNBOUND_FIELD) {
+      UnboundFieldExpr *unbound_field_expr = static_cast<UnboundFieldExpr *>(expr);
+      const char *table_name = unbound_field_expr->table_name();
+      if (strlen(table_name) > 0 && table_alias_map.find(table_name) != table_alias_map.end()) {
+        unbound_field_expr->set_table_name(table_alias_map[table_name].c_str());
+      }
+    }
+    return RC::SUCCESS;
+  };
+
+  RC rc = handle_from_clause(db, select_sql.relations, handle_expr_alias, binder_context, tables, table_map, table_alias_map, join_tables);
   if (rc != RC::SUCCESS) {
     LOG_WARN("handle from clause failed. rc=%s", strrc(rc));
     return rc;
@@ -140,7 +174,12 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const Bind
   }
   
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
-    RC rc = expression_binder.bind_expression(expression, bound_expressions);
+    RC rc = expression->traverse_check(handle_expr_alias);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("handle expr alias failed in select clause. rc=%s", strrc(rc));
+      return rc;
+    }
+    rc = expression_binder.bind_expression(expression, bound_expressions);
     if (OB_FAIL(rc)) {
       LOG_INFO("bind select clause expression failed. rc=%s", strrc(rc));
       return rc;
@@ -149,7 +188,13 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const Bind
 
   vector<unique_ptr<Expression>> group_by_expressions;
   for (unique_ptr<Expression> &expression : select_sql.group_by) {
-    RC rc = expression_binder.bind_expression(expression, group_by_expressions);
+    RC rc = expression->traverse_check(handle_expr_alias);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("handle expr alias failed in group by clause. rc=%s", strrc(rc));
+      return rc;
+    }
+
+    rc = expression_binder.bind_expression(expression, group_by_expressions);
     if (OB_FAIL(rc)) {
       LOG_INFO("bind group by clause expression failed. rc=%s", strrc(rc));
       return rc;
@@ -157,6 +202,16 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const Bind
   }
 
   // create filter statement in `where` statement
+  for (ConditionSqlNode &condition : select_sql.conditions) {
+    RC rc1 = condition.left_expression->traverse_check(handle_expr_alias);
+    RC rc2 = condition.right_expression->traverse_check(handle_expr_alias);
+    if (rc1 != RC::SUCCESS || rc2 != RC::SUCCESS) {
+      rc1 = rc1 != RC::SUCCESS ? rc1 : rc2;
+      LOG_WARN("handle expr alias failed in where clause. rc=%s", strrc(rc1));
+      return rc1;
+    }
+  }
+
   FilterStmt *filter_stmt = nullptr;
   rc                      = FilterStmt::create(db,
       default_table,

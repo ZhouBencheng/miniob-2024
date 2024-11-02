@@ -87,9 +87,11 @@ private:
    */
   static RC handle_from_clause(Db            *db, 
     std::vector<InnerJoinSqlNode>            &inner_join_nodes,
+    std::function<RC(Expression *)>        handle_expr_alias,
     BinderContext                            &binder_context, 
     std::vector<Table *>                     &tables, 
     std::unordered_map<std::string, Table *> &table_map,
+    std::unordered_map<std::string, std::string> &table_alias_map,
     std::vector<JoinTable>                  &join_tables);
 
 private:

@@ -94,9 +94,9 @@ struct ConditionSqlNode
  * conditions中一个on条件的索引和join_relations的索引是一一对应的
  */
 struct InnerJoinSqlNode {
-  string                                      basic_relation;
-  std::vector<std::string>                    join_relations;
-  std::vector<std::vector<ConditionSqlNode> > conditions;
+  std::pair<std::string, std::string>              basic_relation; // pair<表名, 别名>
+  std::vector<std::pair<std::string, std::string>> join_relations; // pair<表名, 别名>
+  std::vector<std::vector<ConditionSqlNode>>       conditions;
 };
 
 /**
