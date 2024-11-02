@@ -183,6 +183,7 @@ public:
   RC get_value(const Tuple &tuple, Value &value) const override { return RC::UNIMPLEMENTED; }  // 不需要实现
 
   const char *table_name() const { return table_name_.c_str(); }
+  void set_table_name(const char *table_name) { table_name_ = table_name; }
 
   std::unique_ptr<Expression> clone() const override { return std::make_unique<StarExpr>(table_name_.c_str()); }
 

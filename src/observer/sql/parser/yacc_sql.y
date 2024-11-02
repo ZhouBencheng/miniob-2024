@@ -716,6 +716,10 @@ expression:
     | '*' {
       $$ = new StarExpr();
     }
+    | ID DOT '*' {
+      $$ = new StarExpr($1);
+      free($1);
+    }
     | aggregation_func {
       $$ = $1;
     }

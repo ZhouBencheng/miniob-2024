@@ -170,6 +170,12 @@ RC SelectStmt::create(Db *db,
           return rc1;
         }
       }
+    } else if (expr->type() == ExprType::STAR) {
+      StarExpr *star_expr = static_cast<StarExpr *>(expr);
+      const char *table_name = star_expr->table_name();
+      if (strlen(table_name) > 0 && table_alias_map.find(table_name) != table_alias_map.end()) {
+        star_expr->set_table_name(table_alias_map[table_name].c_str());
+      }
     }
     return rc;
   };
