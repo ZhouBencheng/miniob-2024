@@ -40,7 +40,17 @@ RC UpdatePhysicalOperator::open(Trx *trx)
                     LOG_WARN("failed to get value from subquery expr. rc=%s", strrc(rc));
                     return rc;
                 }
-                subquery_expr->close();
+                if (subquery_expr->have_row(tuple)) {
+                    subquery_expr->close();
+                    LOG_WARN("subquery expr has multiple rows. rc=%s", strrc(rc));
+                    return RC::INVALID_ARGUMENT;
+                }
+
+                rc = subquery_expr->close();
+                if (rc != RC::SUCCESS) {
+                    LOG_WARN("failed to close subquery expr. rc=%s", strrc(rc));
+                    return rc;
+                }
             } else {
                 rc = expr->get_value(*tuple, value);
                 if (rc != RC::SUCCESS) {

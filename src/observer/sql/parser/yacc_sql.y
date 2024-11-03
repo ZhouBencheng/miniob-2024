@@ -139,6 +139,9 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
         IS
         AS
         IN
+        ASC
+        DESC
+        ORDER
         EXISTS
         NULL_T
         LIKE
@@ -636,7 +639,7 @@ join_list: // 改规则用于解析单个inner join中的内连接表和对应�
     }
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM join_node join_node_list where group_by
+    SELECT expression_list FROM join_node join_node_list where order_by group_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
