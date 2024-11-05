@@ -88,11 +88,9 @@ public:
   std::vector<FilterUnit *> &filter_units() { return filter_units_; }
 
 public:
-  static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      ExpressionBinder &expression_binder, ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt);
+  static RC create(Db *db, ExpressionBinder &expression_binder, ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt);
 
-  static RC create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      ExpressionBinder &expression_binder, ConditionSqlNode &condition, FilterUnit *&filter_unit);
+  static RC create_filter_unit(Db *db, ExpressionBinder &expression_binder, ConditionSqlNode &condition, FilterUnit *&filter_unit);
 
 private:
   std::vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系

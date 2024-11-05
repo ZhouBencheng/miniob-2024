@@ -133,7 +133,6 @@ IS                                      RETURN_TOKEN(IS);
 AS                                      RETURN_TOKEN(AS);
 IN                                      RETURN_TOKEN(IN);
 ASC                                     RETURN_TOKEN(ASC);
-DESC                                    RETURN_TOKEN(DESC);
 ORDER                                   RETURN_TOKEN(ORDER);
 EXISTS                                  RETURN_TOKEN(EXISTS);
 LIKE                                    RETURN_TOKEN(LIKE);

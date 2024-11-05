@@ -37,6 +37,11 @@ public:
     return table_name_ == other.table_name_ && field_name_ == other.field_name_ && alias_ == other.alias_;
   }
 
+  std::string to_string() const
+  {
+    return std::string(table_name_) + "." + std::string(field_name_) + " AS " + std::string(alias_);
+  }
+
 private:
   std::string table_name_;
   std::string field_name_;

@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/order_by_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 
@@ -91,7 +92,7 @@ RC SelectStmt::handle_from_clause(Db       *db,
       }
 
       // 对于InnerJoinSqlNode中的join_relations表，其on_conds不为空，因此在JoinTables中需要推入(Table *, FilterStmt *)
-      rc = FilterStmt::create(db, nullptr, &table_map, expression_binder, on_conds.data(), static_cast<int>(on_conds.size()), filter_stmt);
+      rc = FilterStmt::create(db, expression_binder, on_conds.data(), static_cast<int>(on_conds.size()), filter_stmt);
       if (rc != RC::SUCCESS) {
         LOG_WARN("cannot construct filter stmt");
         return rc;
@@ -149,7 +150,7 @@ RC SelectStmt::create(Db *db,
   vector<JoinTable>              join_tables;
   unordered_map<std::string, std::string> table_alias_map;
 
-  function<RC(Expression *)> handle_expr_alias = [&table_alias_map, &handle_expr_alias](Expression *expr) -> RC {
+  function<RC(Expression *)> handle_expr_alias = [&table_alias_map, &handle_expr_alias](Expression *expr) -> RC { // 后序遍历表达式树，将每个属性表达式中存在别名的地方替换为别名对应的表名
     RC rc = RC::SUCCESS;
     if (expr->type() == ExprType::UNBOUND_FIELD) {
       UnboundFieldExpr *unbound_field_expr = static_cast<UnboundFieldExpr *>(expr);
@@ -248,8 +249,6 @@ RC SelectStmt::create(Db *db,
 
   FilterStmt *filter_stmt = nullptr;
   rc                      = FilterStmt::create(db,
-      default_table,
-      &table_map,
       expression_binder,
       select_sql.conditions.data(),
       static_cast<int>(select_sql.conditions.size()),
@@ -257,6 +256,41 @@ RC SelectStmt::create(Db *db,
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
+  }
+
+  // create order by statement in `order by` statement
+  // 首先收集select子句中的属性表达式，将其深拷贝一份放在order_by_stmt中
+  OrderByStmt *order_by_stmt = nullptr;
+  if (select_sql.order_by.size() > 0) {
+    std::vector<std::unique_ptr<Expression>> basic_exprs;
+
+    auto collect_field_expr = [&basic_exprs](Expression *expr) {
+      if (expr->type() == ExprType::FIELD) {
+        basic_exprs.emplace_back(expr->clone());
+      }
+    };
+
+    auto collect_aggregation_expr = [&basic_exprs](Expression *expr) {
+      if (expr->type() == ExprType::AGGREGATION) {
+        basic_exprs.emplace_back(expr->clone());
+      }
+    };
+    // 从select子句中提取最基本表达式，包括属性表达式（不在聚合函数中的）和聚合表达式
+    for (std::unique_ptr<Expression> &expression : bound_expressions) {
+      expression->traverse_collect(collect_field_expr, [](Expression *expr) { return expr->type() != ExprType::AGGREGATION; });
+      expression->traverse_collect(collect_aggregation_expr);
+    }
+
+    rc = OrderByStmt::create(db, 
+                             expression_binder, 
+                             select_sql.order_by.data(), 
+                             static_cast<int>(select_sql.order_by.size()), 
+                             std::move(basic_exprs), 
+                             order_by_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct order by stmt");
+      return rc;
+    }
   }
 
   // everything alright

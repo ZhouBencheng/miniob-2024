@@ -145,6 +145,22 @@ public:
    */
   virtual RC traverse_check(const std::function<RC(Expression *)> &check_func) { return check_func(this); }
 
+  /**
+   * @brief 后序遍历表达式进行深拷贝收集
+   */
+  virtual void traverse_collect(const std::function<void(Expression *)> &collect_func)
+  {
+    auto default_filter = [](Expression *) { return true; };
+    traverse_collect(collect_func, default_filter);
+  }
+
+  virtual void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+  {
+    if (filter(this)) {
+      collect_func(this);
+    }
+  }
+
 protected:
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
@@ -313,6 +329,8 @@ public:
 
   RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
 
+  void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter) override;
+
 private:
   RC cast(const Value &value, Value &cast_value) const;
 
@@ -366,6 +384,8 @@ public:
 
   RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
 
+  void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter) override;
+
 private:
   CompOp                      comp_;
   std::unique_ptr<Expression> left_;
@@ -408,6 +428,8 @@ public:
   }
 
   RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
+  void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter) override;
 
 private:
   Type                                     conjunction_type_;
@@ -462,6 +484,8 @@ public:
 
   RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
 
+  void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter) override;
+
 private:
   RC calc_value(const Value &left_value, const Value &right_value, Value &value) const;
 
@@ -492,6 +516,8 @@ public:
   AttrType value_type() const override { return child_->value_type(); }
 
   RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
+  void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter) override;
 
 private:
   std::string                 aggregate_name_; // 聚合函数名称
@@ -541,6 +567,8 @@ public:
 
   RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
 
+  void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter) override;
+
 public:
   static RC type_from_string(const char *type_str, Type &type);
 
@@ -567,6 +595,8 @@ public:
   AttrType value_type() const override { return AttrType::VECTORS; }
 
   RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
+  void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter) override;
 
 private:
   std::string                 vector_func_name_;
@@ -603,6 +633,8 @@ public:
   std::unique_ptr<Expression> clone() const override { return std::make_unique<VectorExpr>(vector_func_type_, left_->clone(), right_->clone()); }
 
   RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
+  void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter) override;
 
 public:
   static RC type_from_string(const char *type_str, Type &type);
@@ -669,7 +701,10 @@ public:
   void reset() { idx_ = 0; }
 
   std::unique_ptr<Expression> clone() const override;
+
   RC traverse_check(const std::function<RC(Expression *)> &check_func) override;
+
+  void traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter) override;
 
 public:
   std::vector<std::unique_ptr<Expression>> &expressions() { return expressions_; }

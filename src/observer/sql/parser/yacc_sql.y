@@ -94,7 +94,6 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
         L2_DISTANCE
         COSINE_DISTANCE
         INNER_PRODUCT
-        DESC
         SHOW
         SYNC
         INSERT
@@ -151,6 +150,7 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
   ParsedSqlNode *                            sql_node;
   ConditionSqlNode *                         condition;
   InnerJoinSqlNode *                         join_node;
+  OrderBySqlNode *                           sort_unit;
   Value *                                    value;
   enum CompOp                                comp;
   RelAttrSqlNode *                           rel_attr;
@@ -162,6 +162,7 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
   std::vector<ConditionSqlNode> *            condition_list;
   std::vector<InnerJoinSqlNode> *            join_node_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
+  std::vector<OrderBySqlNode> *              sort_unit_list;
   std::vector<std::string> *                 relation_list;
   char *                                     string;
   int                                        number;
@@ -224,12 +225,15 @@ UnboundVectorExpr *create_vector_expression(const char *vector_func_name,
 %type <sql_node>            help_stmt
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
-%type <assignment>         assignment
-%type <assignments>        assignment_list
+%type <assignment>          assignment
+%type <assignments>         assignment_list
+%type <sort_unit>           sort_unit
+%type <sort_unit_list>      sort_unit_list
+%type <sort_unit_list>      order_by
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
-%precedence LOWEST
+
 %left '+' '-'
 %left '*' '/'
 %nonassoc UMINUS /* %nonasoc表示运算符的非结合特性，该行代码定义一个一元符号运算符UMINUS */
@@ -660,11 +664,69 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
 
       if ($7 != nullptr) {
-        $$->selection.group_by.swap(*$7);
+        $$->selection.order_by.swap(*$7);
+        std::reverse($$->selection.order_by.begin(), $$->selection.order_by.end());
         delete $7;
+      }
+
+      if ($8 != nullptr) {
+        $$->selection.group_by.swap(*$8);
+        delete $8;
       }
     }
     ;
+
+order_by:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | ORDER BY sort_unit_list
+    {
+      $$ = $3;
+    }
+    ;
+
+sort_unit_list:
+    sort_unit
+    {
+      $$ = new std::vector<OrderBySqlNode>;
+      $$->emplace_back(std::move(*$1));
+      delete $1;
+    }
+    | sort_unit COMMA sort_unit_list
+    {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<OrderBySqlNode>;
+      }
+      $$->emplace_back(std::move(*$1));
+      delete $1;
+    }
+    ;
+
+sort_unit:
+    expression
+    {
+      $$ = new OrderBySqlNode;
+      $$->expression.reset($1);
+      $$->is_asc = true;
+    }
+    | expression ASC
+    {
+      $$ = new OrderBySqlNode;
+      $$->expression.reset($1);
+      $$->is_asc = true;
+    }
+    | expression DESC
+    {
+      $$ = new OrderBySqlNode;
+      $$->expression.reset($1);
+      $$->is_asc = false;
+    }
+    ;
+
 calc_stmt:
     CALC expression_list
     {

@@ -29,8 +29,7 @@ FilterStmt::~FilterStmt()
 }
 
 // 将where条件子句中的每一个过滤条件转化为FilterUnit对象，并封装在vector容器中，默认所有条件之间是AND关系
-RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    ExpressionBinder &expression_binder, ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
+RC FilterStmt::create(Db *db, ExpressionBinder &expression_binder, ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
@@ -41,7 +40,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
 
     // 注意在将ConditionSqlNode类型的成员变量都转化为Expression的unique指针时，我们从parser到resolver传递都需要使用移动语义
     // 因此在下面这个方法中，我们将conditions中的元素一个个构造为FilterUnit对象后，conditions中的元素也将不复存在
-    rc = create_filter_unit(db, default_table, tables, expression_binder, conditions[i], filter_unit);
+    rc = create_filter_unit(db, expression_binder, conditions[i], filter_unit);
     if (rc != RC::SUCCESS) {
       delete tmp_stmt;
       LOG_WARN("failed to create filter unit. condition index=%d", i);
@@ -91,8 +90,7 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
   return RC::SUCCESS;
 }
 
-RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    ExpressionBinder &expression_binder, ConditionSqlNode &condition, FilterUnit *&filter_unit)
+RC FilterStmt::create_filter_unit(Db *db, ExpressionBinder &expression_binder, ConditionSqlNode &condition, FilterUnit *&filter_unit)
 {
   RC rc = RC::SUCCESS;
 

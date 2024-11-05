@@ -85,6 +85,17 @@ struct ConditionSqlNode
   std::unique_ptr<Expression> right_expression;
 };
 
+
+/**
+ * @brief 描述一个order by子句
+ * @ingroup SQLParser
+ * @details order by子句中的每一个属性表达式都是一个OrderBySqlNode
+ */
+struct OrderBySqlNode {
+  std::unique_ptr<Expression> expression;
+  bool                        is_asc;
+};
+
 /**
  * @brief 表示一个inner join构成的表
  * @ingroup SQLParser
@@ -115,6 +126,7 @@ struct SelectSqlNode
   std::vector<std::unique_ptr<Expression>> expressions;  ///< 查询的表达式 SELECT clause
   std::vector<InnerJoinSqlNode>            relations;    ///< 查询的表 FROM clause
   std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件 WHERE clause
+  std::vector<OrderBySqlNode>              order_by;     ///< order by clause
   std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
 };
 

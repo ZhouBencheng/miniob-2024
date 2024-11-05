@@ -75,8 +75,6 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(
     db,                                         // 数据库指针
-    table,                                      // 默认表指针
-    &table_map,                                 // 映射表指针
     expression_binder,                          // 表达式绑定器
     update.conditions.data(),                   // 过滤条件数组指针
     static_cast<int>(update.conditions.size()), // 过滤条件个数

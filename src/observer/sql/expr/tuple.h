@@ -153,6 +153,8 @@ public:
   }
 };
 
+//////////////////////////////////////////////////////////////////////////////
+
 /**
  * @brief 一行数据的元组
  * @ingroup Tuple
@@ -257,6 +259,8 @@ private:
   std::vector<FieldExpr *> speces_;
 };
 
+//////////////////////////////////////////////////////////////////////////////
+
 /**
  * @brief 从一行数据中，选择部分字段组成的元组，也就是投影操作
  * @ingroup Tuple
@@ -315,6 +319,67 @@ private:
   std::vector<std::unique_ptr<Expression>> expressions_;
   Tuple                                   *tuple_ = nullptr;
 };
+
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief 将select子句中expression中的FieldExpr和AggregateExpr的表达式和计算结果拼接为一个tuple
+ * @ingroup Tuple
+ * @details 已知在算子树中，OrderByOperator的上一个算子为ProjectOperator，投影算子通过其内部存储的ProjectTuple来获取数据
+ * 因此，对于其下层的排序算子，我们只需要将最基本表达式的值拼接为SpliceTuple，那么上层ProjectTuple中的表达式就可以从这里的最基本表达式中得到最终查询结果
+ * 如何理解这里的最基本表达式：对于算数表达式、比较表达式、类型转换表达式，其获取结果的过程都终将依赖内部属性表达式或常量表达式的获取
+ * 因此我可以在SpliceTuple仅存储属性表达式的值，就可以让上层的投影获取正确的结果
+ */
+class SpliceTuple : public Tuple
+{
+public:
+  SpliceTuple()          = default;
+  virtual ~SpliceTuple() = default;
+
+  void set_expressions(std::vector<std::unique_ptr<Expression>> &&exprs) { exprs_ = std::move(exprs); }
+  void set_values(std::vector<Value> &&values) { values_ = std::move(values); }
+
+  virtual int cell_num() const override { return static_cast<int>(values_.size()); }
+
+  virtual RC cell_at(int index, Value &cell) const override
+  {
+    if (index < 0 || index >= cell_num()) {
+      return RC::NOTFOUND;
+    }
+    cell = values_[index];
+    return RC::SUCCESS;
+  }
+
+  virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override
+  {
+    for (size_t i = 0; i < exprs_.size(); ++i) {
+      if (exprs_[i]->type() == ExprType::FIELD) {
+        FieldExpr *field_expr = static_cast<FieldExpr *>(exprs_[i].get());
+        if (0 == strcmp(field_expr->field().field_name(), spec.field_name()) &&
+            0 == strcmp(field_expr->field().table_name(), spec.table_name())) {
+          cell = values_[i];
+          return RC::SUCCESS;
+        }
+      } else if (exprs_[i]->type() == ExprType::AGGREGATION) {
+        if (0 == strcmp(spec.alias(), exprs_[i]->name())) {
+          cell = values_[i];
+          return RC::SUCCESS;
+        }
+      } else {
+        LOG_WARN("unsupported expression type in splice tuple: %d", exprs_[i]->type());
+        return RC::INTERNAL;
+      }
+    }
+    LOG_WARN("cannot find cell in splice tuple: %s", spec.to_string().c_str());
+    return RC::NOTFOUND;
+  }
+
+private:
+  std::vector<std::unique_ptr<Expression>> exprs_;
+  std::vector<Value>                       values_;
+};
+
+//////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief 一些常量值组成的Tuple
@@ -392,6 +457,8 @@ private:
   std::vector<Value>         cells_;
   std::vector<TupleCellSpec> specs_;
 };
+
+//////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief 将两个tuple合并为一个tuple

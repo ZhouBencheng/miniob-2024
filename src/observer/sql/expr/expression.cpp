@@ -141,6 +141,14 @@ RC CastExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
   return rc;
 }
 
+void CastExpr::traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+{
+  if (filter(this)) {
+    child_->traverse_collect(collect_func, filter);
+    collect_func(this);
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_ptr<Expression> right)
@@ -421,6 +429,17 @@ RC ComparisonExpr::traverse_check(const std::function<RC(Expression *)> &check_f
   return rc;
 }
 
+void ComparisonExpr::traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+{
+  if (filter(this)) {
+    left_->traverse_collect(collect_func, filter);
+    if (right_) {
+      right_->traverse_collect(collect_func, filter);
+    }
+    collect_func(this);
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> children)
     : conjunction_type_(type), children_(std::move(children))
@@ -473,6 +492,16 @@ RC ConjunctionExpr::traverse_check(const std::function<RC(Expression *)> &check_
     return rc;
   }
   return rc;
+}
+
+void ConjunctionExpr::traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+{
+  if (filter(this)) {
+    for (auto &child : children_) {
+      child->traverse_collect(collect_func, filter);
+    }
+    collect_func(this);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -737,6 +766,19 @@ RC ArithmeticExpr::traverse_check(const std::function<RC(Expression *)> &check_f
   return rc;
 }
 
+void ArithmeticExpr::traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+{
+  if (filter(this)) {
+    if (left_) {
+      left_->traverse_collect(collect_func, filter);
+    }
+    if (right_) {
+      right_->traverse_collect(collect_func, filter);
+    }
+    collect_func(this);
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, Expression *child)
@@ -757,6 +799,14 @@ RC UnboundAggregateExpr::traverse_check(const std::function<RC(Expression *)> &c
     return rc;
   }
   return rc;
+}
+
+void UnboundAggregateExpr::traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+{
+  if (filter(this)) {
+    child_->traverse_collect(collect_func, filter);
+    collect_func(this);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -860,6 +910,14 @@ RC AggregateExpr::traverse_check(const std::function<RC(Expression *)> &check_fu
   return rc;
 }
 
+void AggregateExpr::traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+{
+  if (filter(this)) {
+    child_->traverse_collect(collect_func, filter);
+    collect_func(this);
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 UnboundVectorExpr::UnboundVectorExpr(const char *vector_func_name, Expression *left, Expression *right)
@@ -885,6 +943,15 @@ RC UnboundVectorExpr::traverse_check(const std::function<RC(Expression *)> &chec
     return rc;
   }
   return rc;
+}
+
+void UnboundVectorExpr::traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+{
+  if (filter(this)) {
+    left_->traverse_collect(collect_func, filter);
+    right_->traverse_collect(collect_func, filter);
+    collect_func(this);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1051,6 +1118,15 @@ RC VectorExpr::traverse_check(const std::function<RC(Expression *)> &check_func)
   return rc;
 }
 
+void VectorExpr::traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+{
+  if (filter(this)) {
+    left_->traverse_collect(collect_func, filter);
+    right_->traverse_collect(collect_func, filter);
+    collect_func(this);
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 SubQueryExpr::SubQueryExpr(std::unique_ptr<ParsedSqlNode> parsed_sql_node)
     : parsed_sql_node_(std::move(parsed_sql_node))
@@ -1166,6 +1242,16 @@ RC ExprListExpr::traverse_check(const std::function<RC(Expression *)> &check_fun
   }
   check_func(this);
   return rc;
+}
+
+void ExprListExpr::traverse_collect(const std::function<void(Expression *)> &collect_func, const std::function<bool(Expression *)> &filter)
+{
+  if (filter(this)) {
+    for (auto &expr : expressions_) {
+      expr->traverse_collect(collect_func, filter);
+    }
+    collect_func(this);
+  }
 }
 
 std::unique_ptr<Expression> ExprListExpr::clone() const
