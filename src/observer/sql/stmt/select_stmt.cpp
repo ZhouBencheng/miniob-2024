@@ -299,6 +299,7 @@ RC SelectStmt::create(Db *db,
   select_stmt->join_tables_.swap(join_tables);
   select_stmt->query_expressions_.swap(bound_expressions);
   select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->order_by_stmt_ = order_by_stmt;
   select_stmt->group_by_.swap(group_by_expressions);
   stmt                      = select_stmt;
   return RC::SUCCESS;

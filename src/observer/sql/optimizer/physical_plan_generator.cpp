@@ -45,6 +45,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/operator/update_logical_operator.h"
 #include "sql/operator/update_physical_operator.h"
+#include "sql/operator/order_by_logical_operator.h"
+#include "sql/operator/order_by_physical_operator.h"
 #include "src/observer/storage/index/bplus_tree.h"
 
 using namespace std;
@@ -92,6 +94,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 
     case LogicalOperatorType::UPDATE: {
       return create_plan(static_cast<UpdateLogicalOperator &>(logical_operator), oper);
+    } break;
+
+    case LogicalOperatorType::ORDER_BY: {
+      return create_plan(static_cast<OrderByLogicalOperator &>(logical_operator), oper);
     } break;
 
     default: {
@@ -201,43 +207,6 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
 
   return RC::SUCCESS;
 }
-
-// RC PhysicalPlanGenerator::create_subquery_plan(std::unique_ptr<Expression> &expression)
-// {
-//   RC rc = RC::SUCCESS;
-//   if (expression->type() == ExprType::CONJUNCTION) {
-
-//     auto conjunction_expr = static_cast<ConjunctionExpr *>(expression.get());
-//     for (auto &child : conjunction_expr->children()) {
-//       rc = create_subquery_plan(child);
-//       if (rc != RC::SUCCESS) {
-//         LOG_WARN("failed to create subquery plan in conjunction expr. rc=%s", strrc(rc));
-//         return rc;
-//       }
-//     }
-//   } else if (expression->type() == ExprType::COMPARISON) {
-
-//     auto comparison_expr = static_cast<ComparisonExpr *>(expression.get());
-//     // in 表达式只有右边可能是子查询
-//     rc = create_subquery_plan(comparison_expr->right());
-//     if (rc != RC::SUCCESS) {
-//       LOG_WARN("failed to create subquery plan in comparison expr. rc=%s", strrc(rc));
-//       return rc;
-//     }
-//   } else if (expression->type() == ExprType::SUBQUERY) {
-
-//     auto subquery_expr = static_cast<SubqueryExpr *>(expression.get());
-//     std::unique_ptr<PhysicalOperator> physical_operator;
-//     rc = create(*(subquery_expr->logical_operator()), physical_operator);
-//     if (rc != RC::SUCCESS) {
-//       LOG_WARN("failed to create subquery plan in subquery expr. rc=%s", strrc(rc));
-//       return rc;
-//     }
-//     subquery_expr->set_physical_operator(std::move(physical_operator));
-//   }
-
-//   return rc;
-// }
 
 RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper, unique_ptr<PhysicalOperator> &oper)
 {
@@ -380,6 +349,28 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
   if (child_physical_oper) {
     oper->add_child(std::move(child_physical_oper));
   }
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(OrderByLogicalOperator &order_by_oper, unique_ptr<PhysicalOperator> &oper)
+{
+  RC rc = RC::SUCCESS;
+  std::vector<std::unique_ptr<LogicalOperator>> &child_opers = order_by_oper.children();
+  if (child_opers.size() != 1) {
+    LOG_WARN("order by operator should have 1 child, but have %d", child_opers.size());
+    return RC::INTERNAL;
+  }
+
+  unique_ptr<PhysicalOperator> child_physical_oper;
+  rc = create(*child_opers.front(), child_physical_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create child physical operator. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new OrderByPhysicalOperator(std::move(order_by_oper.units()), std::move(order_by_oper.basic_exprs())));
+  oper->add_child(std::move(child_physical_oper));
+
   return rc;
 }
 

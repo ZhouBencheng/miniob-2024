@@ -337,7 +337,9 @@ public:
   virtual ~SpliceTuple() = default;
 
   void set_expressions(std::vector<std::unique_ptr<Expression>> &&exprs) { exprs_ = std::move(exprs); }
-  void set_values(std::vector<Value> &&values) { values_ = std::move(values); }
+  void set_values(const std::vector<Value> &values) { values_ = values; }
+  auto get_values() const -> const std::vector<Value> & { return values_; }
+  auto get_exprs() const -> const std::vector<std::unique_ptr<Expression>> & { return exprs_; }
 
   virtual int cell_num() const override { return static_cast<int>(values_.size()); }
 
@@ -347,6 +349,23 @@ public:
       return RC::NOTFOUND;
     }
     cell = values_[index];
+    return RC::SUCCESS;
+  }
+
+  virtual RC spec_at(int index, TupleCellSpec &spec) const override
+  {
+    if (index < 0 || index >= cell_num()) {
+      return RC::NOTFOUND;
+    }
+    if (exprs_[index]->type() == ExprType::FIELD) {
+      FieldExpr *field_expr = static_cast<FieldExpr *>(exprs_[index].get());
+      spec = TupleCellSpec(field_expr->field().table_name(), field_expr->field().field_name());
+    } else if (exprs_[index]->type() == ExprType::AGGREGATION) {
+      spec = TupleCellSpec(exprs_[index]->name());
+    } else {
+      LOG_WARN("unsupported expression type in splice tuple: %d", exprs_[index]->type());
+      return RC::INTERNAL;
+    }
     return RC::SUCCESS;
   }
 

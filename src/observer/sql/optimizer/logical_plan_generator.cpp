@@ -27,6 +27,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/group_by_logical_operator.h"
 #include "sql/operator/update_logical_operator.h"
+#include "sql/operator/order_by_logical_operator.h"
 
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/delete_stmt.h"
@@ -36,6 +37,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/select_stmt.h"
 #include "sql/stmt/update_stmt.h"
 #include "sql/stmt/stmt.h"
+#include "sql/stmt/order_by_stmt.h"
 
 #include "sql/expr/expression_iterator.h"
 
@@ -81,6 +83,12 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
 
       rc = create_plan(update_stmt, logical_operator);
     } break;
+
+    case StmtType::ORDER_BY: {
+      OrderByStmt *order_by_stmt = static_cast<OrderByStmt *>(stmt);
+      rc = create_plan(order_by_stmt, logical_operator);
+    } break;
+
     default: {
       rc = RC::UNIMPLEMENTED;
     }
@@ -196,6 +204,22 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     last_oper = &group_by_oper;
   }
 
+  // 构建ORDER BY子句产生的逻辑算子
+  unique_ptr<LogicalOperator> order_by_oper;
+  rc = create_plan(select_stmt->order_by_stmt(), order_by_oper);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to create order by logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  if (order_by_oper) {
+    if (*last_oper) {
+      order_by_oper->add_child(std::move(*last_oper));
+    }
+
+    last_oper = &order_by_oper;
+  }
+
   // 构建SELECT子句产生的投影逻辑算子，并以投影算子为根算子
   auto project_oper = make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));
   if (*last_oper) {
@@ -206,7 +230,18 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
   return RC::SUCCESS;
 }
 
-RC check_and_process_subquery_expr(unique_ptr<Expression> &expr) {
+RC LogicalPlanGenerator::create_plan(OrderByStmt *order_by_stmt, std::unique_ptr<LogicalOperator> &logical_operator) 
+{
+  if (order_by_stmt == nullptr) {
+    logical_operator = nullptr;
+    return RC::SUCCESS;
+  }
+  
+  logical_operator = make_unique<OrderByLogicalOperator>(std::move(order_by_stmt->units()), std::move(order_by_stmt->basic_exprs()));
+  return RC::SUCCESS;
+}
+
+static RC check_and_process_subquery_expr(unique_ptr<Expression> &expr) {
   RC rc = RC::SUCCESS;
   if (expr->type() == ExprType::SUBQUERY) {
     // 将子查询表达式转化为子查询逻辑算子

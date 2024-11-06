@@ -30,6 +30,9 @@ public:
 
     static RC create(Db *db, ExpressionBinder &expression_binder, OrderBySqlNode *nodes, int node_num, std::vector<std::unique_ptr<Expression>> &&proj_exprs, OrderByStmt *&stmt);
 
+    std::vector<std::unique_ptr<OrderByUnit>> &units() { return units_; }
+    std::vector<std::unique_ptr<Expression>> &basic_exprs() { return basic_exprs_; }
+
 private:
     std::vector<std::unique_ptr<OrderByUnit>> units_;
     std::vector<std::unique_ptr<Expression>>  basic_exprs_;

@@ -92,6 +92,22 @@ Value &Value::operator=(Value &&other) noexcept // 移动赋值需要标注函�
   return *this;
 }
 
+bool Value::operator<(const Value &other) const {
+  return compare(other) < 0;
+}
+
+bool Value::operator>(const Value &other) const {
+  return compare(other) > 0;
+}
+
+bool Value::operator==(const Value &other) const {
+  return compare(other) == 0;
+}
+
+bool Value::operator!=(const Value &other) const {
+  return compare(other) != 0;
+}
+
 void Value::reset() // 重置value，属性类型未知，属性值清空
 {
   switch (attr_type_) {

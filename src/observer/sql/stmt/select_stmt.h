@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 
 class FieldMeta;
 class FilterStmt;
+class OrderByStmt;
 class Db;
 class Table;
 
@@ -70,8 +71,9 @@ public:
                     const BinderContext &parent_binder_context = BinderContext()); // 默认构造为空BinderContext
 
 public:
-  const std::vector<JoinTable> &join_tables() const { return join_tables_; }
+  const std::vector<JoinTable>  &join_tables() const { return join_tables_; }
   FilterStmt                    *filter_stmt() const { return filter_stmt_; }
+  OrderByStmt                   *order_by_stmt() const { return order_by_stmt_; }
 
   std::vector<std::unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
   std::vector<std::unique_ptr<Expression>> &group_by() { return group_by_; }
@@ -100,6 +102,7 @@ private:
 private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
   std::vector<JoinTable>                   join_tables_; // JoinTables类型数组存储外连接关系
-  FilterStmt                              *filter_stmt_ = nullptr;
+  FilterStmt                              *filter_stmt_   = nullptr;
+  OrderByStmt                             *order_by_stmt_ = nullptr;
   std::vector<std::unique_ptr<Expression>> group_by_;
 };

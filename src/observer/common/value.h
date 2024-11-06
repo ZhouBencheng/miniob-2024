@@ -55,6 +55,10 @@ public:
 
   Value &operator=(const Value &other);
   Value &operator=(Value &&other) noexcept;
+  bool   operator<(const Value &other) const;
+  bool   operator>(const Value &other) const;
+  bool   operator==(const Value &other) const;
+  bool   operator!=(const Value &other) const;
 
   void reset();
 
